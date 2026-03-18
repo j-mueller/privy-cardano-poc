@@ -147,7 +147,16 @@ function formatWalletBalance(balance: WalletInfo["balance"] | undefined): string
   }
 
   return balance
-    .map(([assetId, quantity]) => `${quantity.toLocaleString()} ${assetId}`)
+    .map(([assetId, quantity]) => {
+      if (assetId === "lovelace") {
+        return `${(quantity / 1_000_000).toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 6,
+        })} Ada`;
+      }
+
+      return `${quantity.toLocaleString()} ${assetId}`;
+    })
     .join(" • ");
 }
 
