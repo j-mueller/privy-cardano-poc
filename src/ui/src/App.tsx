@@ -7,8 +7,6 @@ import {
 } from "@privy-io/react-auth";
 import { useCreateWallet as useCreateExtendedWallet } from "@privy-io/react-auth/extended-chains";
 import {
-  Check,
-  Copy,
   LoaderCircle,
   LogOut,
   ShieldCheck,
@@ -202,13 +200,31 @@ function getRequestErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function parseAdaToLovelace(value: string): number | null {
+  const trimmed = value.trim();
+
+  if (!/^\d+(?:\.\d{1,6})?$/.test(trimmed)) {
+    return null;
+  }
+
+  const [wholePart, fractionalPart = ""] = trimmed.split(".");
+  const lovelace = BigInt(wholePart) * 1_000_000n +
+    BigInt(fractionalPart.padEnd(6, "0"));
+
+  if (lovelace <= 0n || lovelace > BigInt(Number.MAX_SAFE_INTEGER)) {
+    return null;
+  }
+
+  return Number(lovelace);
+}
+
 function App() {
   const { ready, authenticated, login, logout, user } = usePrivy();
   const { refreshUser } = useUser();
   const { generateAuthorizationSignature } = useAuthorizationSignature();
   const { createWallet } = useCreateExtendedWallet();
   const [receiverAddress, setReceiverAddress] = useState("");
-  const [lovelaceAmount, setLovelaceAmount] = useState("");
+  const [adaAmount, setAdaAmount] = useState("");
   const [generatedTransaction, setGeneratedTransaction] =
     useState<ApiTxDummy | null>(null);
   const [signature, setSignature] = useState("");
@@ -217,7 +233,6 @@ function App() {
   const [requestPhase, setRequestPhase] = useState<RequestPhase>("idle");
   const [submittedTxId, setSubmittedTxId] = useState("");
   const [isProvisioningWallet, setIsProvisioningWallet] = useState(false);
-  const [hasCopiedPublicKey, setHasCopiedPublicKey] = useState(false);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
   const [walletInfoError, setWalletInfoError] = useState("");
   const [isWalletInfoLoading, setIsWalletInfoLoading] = useState(false);
@@ -340,18 +355,14 @@ function App() {
       return;
     }
 
-    if (!lovelaceAmount.trim()) {
-      setError("Enter an amount in lovelace.");
+    if (!adaAmount.trim()) {
+      setError("Enter an amount in Ada.");
       return;
     }
 
-    const parsedAmount = Number(lovelaceAmount.trim());
-    if (
-      !Number.isInteger(parsedAmount) ||
-      parsedAmount <= 0 ||
-      !Number.isSafeInteger(parsedAmount)
-    ) {
-      setError("Amount must be a positive whole number of lovelace.");
+    const parsedAmount = parseAdaToLovelace(adaAmount);
+    if (parsedAmount === null) {
+      setError("Amount must be a positive Ada value with up to 6 decimals.");
       return;
     }
 
@@ -474,16 +485,6 @@ function App() {
     }
   };
 
-  const handleCopyPublicKey = async () => {
-    if (!selectedWalletPublicKeyHex) {
-      return;
-    }
-
-    await navigator.clipboard.writeText(selectedWalletPublicKeyHex);
-    setHasCopiedPublicKey(true);
-    window.setTimeout(() => setHasCopiedPublicKey(false), 1500);
-  };
-
   if (!ready) {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff8eb_0%,#f3efe6_48%,#ebe4d7_100%)] px-6 py-10 text-[#1b1813]">
@@ -598,7 +599,7 @@ function App() {
                 <div>
                   <CardTitle>Transaction request</CardTitle>
                   <CardDescription>
-                    Choose a wallet, enter a receiver and lovelace amount, then
+                    Choose a wallet, enter a receiver and Ada amount, then
                     generate a transaction and sign its tx body hash.
                   </CardDescription>
                 </div>
@@ -676,33 +677,6 @@ function App() {
               </div>
 
               <div className="grid gap-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <label
-                    htmlFor="wallet-public-key"
-                    className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
-                  >
-                    Wallet public key
-                  </label>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!selectedWalletPublicKeyHex}
-                    onClick={() => {
-                      void handleCopyPublicKey();
-                    }}
-                  >
-                    {hasCopiedPublicKey ? <Check /> : <Copy />}
-                    {hasCopiedPublicKey ? "Copied" : "Copy public key"}
-                  </Button>
-                </div>
-                <Textarea
-                  id="wallet-public-key"
-                  className="min-h-32 bg-[#fbfaf7] font-mono"
-                  placeholder="Select or create a Sui wallet to view its public key."
-                  value={selectedWalletPublicKeyHex}
-                  readOnly
-                  spellCheck={false}
-                />
                 <div className="grid gap-3 lg:grid-cols-2">
                   <div className="grid gap-3">
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -791,19 +765,20 @@ function App() {
                       htmlFor="lovelace-amount"
                       className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
                     >
-                      Amount (lovelace)
+                      Amount (Ada)
                     </label>
                     <input
                       id="lovelace-amount"
                       type="text"
-                      inputMode="numeric"
+                      inputMode="decimal"
                       className="h-11 rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                      placeholder="1000000"
-                      value={lovelaceAmount}
-                      onChange={(event) => setLovelaceAmount(event.target.value)}
+                      placeholder="1.5"
+                      value={adaAmount}
+                      onChange={(event) => setAdaAmount(event.target.value)}
                     />
                     <p className="text-xs leading-6 text-muted-foreground">
-                      Use whole lovelace values only.
+                      Supports up to 6 decimal places. The request is converted
+                      to lovelace before the transaction is built.
                     </p>
                   </div>
                 </div>
