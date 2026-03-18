@@ -5,6 +5,7 @@ type RawSignHashFunction = "sha256" | "blake2b256" | "keccak256";
 
 type RawSignRequestBody = {
   walletId?: string;
+  payloadHex?: string;
   transactionHex?: string;
   authorizationSignature?: string;
   hashFunction?: RawSignHashFunction;
@@ -69,15 +70,15 @@ function normalizeHex(hex: string): string {
   const normalized = trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
 
   if (normalized.length === 0) {
-    throw new Error("Transaction hex cannot be empty.");
+    throw new Error("Payload hex cannot be empty.");
   }
 
   if (normalized.length % 2 !== 0) {
-    throw new Error("Transaction hex must contain an even number of characters.");
+    throw new Error("Payload hex must contain an even number of characters.");
   }
 
   if (!/^[0-9a-fA-F]+$/.test(normalized)) {
-    throw new Error("Transaction hex contains non-hex characters.");
+    throw new Error("Payload hex contains non-hex characters.");
   }
 
   return normalized.toLowerCase();
@@ -112,6 +113,7 @@ export function createRawSignMiddleware() {
     try {
       const {
         walletId,
+        payloadHex,
         transactionHex,
         authorizationSignature,
         hashFunction = "blake2b256",
@@ -123,8 +125,8 @@ export function createRawSignMiddleware() {
         return;
       }
 
-      if (!transactionHex) {
-        sendJson(response, 400, { error: "Missing transaction hex." });
+      if (!payloadHex && !transactionHex) {
+        sendJson(response, 400, { error: "Missing payload hex or transaction hex." });
         return;
       }
 
@@ -138,16 +140,27 @@ export function createRawSignMiddleware() {
         return;
       }
 
-      const normalizedHex = normalizeHex(transactionHex);
       const privy = getPrivyClient();
-      const rawSignResult = await privy.wallets()._rawSign(walletId, {
-        "privy-authorization-signature": authorizationSignature,
-        params: {
-          bytes: Buffer.from(normalizedHex, "hex").toString("base64"),
-          encoding: "base64",
-          hash_function: hashFunction,
-        },
-      });
+      const rawSignResult = await privy.wallets()._rawSign(
+        walletId,
+        payloadHex
+          ? {
+              "privy-authorization-signature": authorizationSignature,
+              params: {
+                hash: `0x${normalizeHex(payloadHex)}`,
+              },
+            }
+          : {
+              "privy-authorization-signature": authorizationSignature,
+              params: {
+                bytes: Buffer.from(normalizeHex(transactionHex!), "hex").toString(
+                  "base64"
+                ),
+                encoding: "base64",
+                hash_function: hashFunction,
+              },
+            }
+      );
 
       sendJson(response, 200, {
         signature: rawSignResult.data.signature,

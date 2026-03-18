@@ -1,0 +1,160 @@
+cabal-version: 3.4
+name:          privy-cardano-api
+version:       0.1.0
+synopsis:      API for privy-cardano integration
+license:       Apache-2.0
+license-files: LICENSE
+maintainer:    j-mueller@users.noreply.github.com
+author:        J Mueller
+homepage:      https://github.com/j-mueller/privy-cardano
+bug-reports:   https://github.com/j-mueller/privy-cardano
+description:
+  Please see the README on GitHub at <https://github.com/j-mueller/privy-cardano>
+
+common lang
+  default-language:   Haskell2010
+  default-extensions:
+    DataKinds
+    DeriveAnyClass
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    DerivingVia
+    ExplicitForAll
+    FlexibleContexts
+    GADTs
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    KindSignatures
+    LambdaCase
+    MultiParamTypeClasses
+    NamedFieldPuns
+    NumericUnderscores
+    RankNTypes
+    ScopedTypeVariables
+    StandaloneDeriving
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    ViewPatterns
+
+  ghc-options:
+    -Wall -Wnoncanonical-monad-instances -Wunused-packages
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wredundant-constraints -Widentities
+
+library
+  import:          lang
+  exposed-modules:
+    Privy.API
+    Privy.API.PrivyPublicKey
+    Privy.API.SerialiseAddress
+    Privy.API.Tx
+    Privy.API.Wallet
+    Privy.Cli
+
+  other-modules:
+    Privy.API.SendFunds
+    Privy.API.TextEnvelope
+    Privy.Orphans
+    Privy.Utils.Serialise
+
+  hs-source-dirs:  lib
+  build-depends:
+    , aeson
+    , aeson-typescript
+    , base
+    , base16-bytestring
+    , beam-core
+    , beam-migrate
+    , beam-postgres
+    , beam-sqlite
+    , binary
+    , Blammo
+    , blockfrost-api
+    , blockfrost-client
+    , blockfrost-client-core
+    , bytestring
+    , cardano-api
+    , cardano-api-gen
+    , cardano-crypto-class
+    , cardano-ledger-core
+    , case-insensitive
+    , clock
+    , containers
+    , convex-base
+    , convex-blockfrost
+    , convex-coin-selection
+    , convex-node-client
+    , convex-optics
+    , convex-wallet
+    , cryptonite
+    , deepseq
+    , hedgehog-quickcheck
+    , hex-text
+    , hset
+    , http-api-data
+    , http-client
+    , http-client-tls
+    , http-types
+    , lens
+    , memory
+    , mtl
+    , openapi3
+    , optparse-applicative
+    , plutus-core
+    , plutus-ledger-api
+    , plutus-tx
+    , postgresql-simple
+    , QuickCheck
+    , req                     >=3.12.0
+    , resource-pool
+    , serialise
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-server
+    , sqlite-simple
+    , streaming
+    , text
+    , time
+    , transformers
+    , type-fun
+    , wai
+    , wai-cors
+    , warp
+    , yaml
+
+executable export-typescript-api
+  import:         lang
+  hs-source-dirs: exe/export-typescript-api
+  main-is:        Main.hs
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    , base
+    , privy-cardano-api
+    , servant-typescript  >=0.1.0.3
+    , string-interpolate
+
+executable export-openapi-schema
+  import:         lang
+  main-is:        Main.hs
+  hs-source-dirs: exe/export-openapi-schema
+  build-depends:
+    , aeson-pretty
+    , base
+    , bytestring
+    , privy-cardano-api
+    , servant-openapi3
+
+executable privy-cardano-cli
+  import:         lang
+  hs-source-dirs: exe/privy-cardano-cli
+  main-is:        Main.hs
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    , base
+    , privy-cardano-api

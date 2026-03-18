@@ -34,6 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  getApiV1WalletByPublicKey,
+  getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient,
+} from "@/generated/client";
 
 type EligibleWallet = {
   id: string;
@@ -46,6 +50,28 @@ type RawSignResponse = {
   signature?: string;
   error?: string;
 };
+
+type RequestPhase = "idle" | "generating" | "signing" | "submitting";
+
+const cardanoServerUrl = import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL?.replace(
+  /\/$/,
+  ""
+);
+
+function cardanoApiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  if (!cardanoServerUrl) {
+    throw new Error("Missing VITE_PRIVY_CARDANO_SERVER_URL.");
+  }
+
+  if (typeof input === "string") {
+    return fetch(`${cardanoServerUrl}${input}`, init);
+  }
+
+  return fetch(input, init);
+}
 
 function getEligibleWallets(
   linkedAccounts: LinkedAccountWithMetadata[] | undefined
@@ -87,6 +113,25 @@ function bytesToHex(bytes: Uint8Array): string {
   );
 }
 
+function normalizeHexPayload(value: string): string {
+  const trimmed = value.trim();
+  const normalized = trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
+
+  if (!normalized) {
+    throw new Error("Payload hex cannot be empty.");
+  }
+
+  if (normalized.length % 2 !== 0) {
+    throw new Error("Payload hex must contain an even number of characters.");
+  }
+
+  if (!/^[0-9a-fA-F]+$/.test(normalized)) {
+    throw new Error("Payload hex contains non-hex characters.");
+  }
+
+  return normalized.toLowerCase();
+}
+
 function normalizePublicKeyToHex(publicKey: string | undefined): string {
   if (!publicKey) {
     return "";
@@ -110,18 +155,73 @@ function normalizePublicKeyToHex(publicKey: string | undefined): string {
   }
 }
 
+function normalizePublicKeyForCardanoApi(publicKeyHex: string): string {
+  const normalized = publicKeyHex.replace(/^0x/i, "");
+
+  if (normalized.length === 66 && normalized.startsWith("00")) {
+    return normalized.slice(2);
+  }
+
+  return normalized;
+}
+
+function formatWalletBalance(balance: WalletInfo["balance"] | undefined): string {
+  if (!balance || balance.length === 0) {
+    return "No balance found for this wallet.";
+  }
+
+  return balance
+    .map(([assetId, quantity]) => {
+      if (assetId === "lovelace") {
+        return `${(quantity / 1_000_000).toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 6,
+        })} Ada`;
+      }
+
+      return `${quantity.toLocaleString()} ${assetId}`;
+    })
+    .join(" • ");
+}
+
+function getRequestErrorMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "text" in error &&
+    typeof error.text === "string" &&
+    error.text.length > 0
+  ) {
+    return error.text;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function App() {
   const { ready, authenticated, login, logout, user } = usePrivy();
   const { refreshUser } = useUser();
   const { generateAuthorizationSignature } = useAuthorizationSignature();
   const { createWallet } = useCreateExtendedWallet();
-  const [transactionHex, setTransactionHex] = useState("");
-  const [signatureHex, setSignatureHex] = useState("");
+  const [receiverAddress, setReceiverAddress] = useState("");
+  const [lovelaceAmount, setLovelaceAmount] = useState("");
+  const [generatedTransaction, setGeneratedTransaction] =
+    useState<ApiTxDummy | null>(null);
+  const [signature, setSignature] = useState("");
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [error, setError] = useState("");
-  const [isSigning, setIsSigning] = useState(false);
+  const [requestPhase, setRequestPhase] = useState<RequestPhase>("idle");
+  const [submittedTxId, setSubmittedTxId] = useState("");
   const [isProvisioningWallet, setIsProvisioningWallet] = useState(false);
   const [hasCopiedPublicKey, setHasCopiedPublicKey] = useState(false);
+  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
+  const [walletInfoError, setWalletInfoError] = useState("");
+  const [isWalletInfoLoading, setIsWalletInfoLoading] = useState(false);
+  const [walletInfoRefreshKey, setWalletInfoRefreshKey] = useState(0);
 
   const eligibleWallets = useMemo(
     () => getEligibleWallets(user?.linkedAccounts),
@@ -141,6 +241,63 @@ function App() {
   const selectedWalletPublicKeyHex = normalizePublicKeyToHex(
     selectedWallet?.publicKey
   );
+  const selectedWalletPublicKeyHash =
+    normalizePublicKeyForCardanoApi(selectedWalletPublicKeyHex);
+  const isSubmittingRequest = requestPhase !== "idle";
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!selectedWalletPublicKeyHash) {
+      setWalletInfo(null);
+      setWalletInfoError("");
+      setIsWalletInfoLoading(false);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    setIsWalletInfoLoading(true);
+    setWalletInfoError("");
+
+    void getApiV1WalletByPublicKey(selectedWalletPublicKeyHash, cardanoApiFetch)
+      .then((nextWalletInfo) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setWalletInfo(nextWalletInfo);
+      })
+      .catch((requestError: unknown) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setWalletInfo(null);
+        setWalletInfoError(
+          requestError &&
+            typeof requestError === "object" &&
+            "text" in requestError &&
+            typeof requestError.text === "string" &&
+            requestError.text.length > 0
+            ? requestError.text
+            : requestError instanceof Error
+              ? requestError.message
+              : "Failed to load Cardano wallet info."
+        );
+      })
+      .finally(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        setIsWalletInfoLoading(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedWalletPublicKeyHash, walletInfoRefreshKey]);
 
   const handleProvisionWallet = async () => {
     setError("");
@@ -162,39 +319,62 @@ function App() {
     }
   };
 
-  const handleSign = async () => {
+  const handleGenerateTransaction = async () => {
     setError("");
-    setSignatureHex("");
+    setSignature("");
+    setGeneratedTransaction(null);
+    setSubmittedTxId("");
 
     if (!selectedWalletId) {
       setError("No delegated embedded wallet is available for raw_sign.");
       return;
     }
 
-    if (!transactionHex.trim()) {
-      setError("Paste a serialized transaction in hex format first.");
+    if (!selectedWalletPublicKeyHash) {
+      setError("The selected wallet is missing a Cardano public key.");
       return;
     }
 
-    setIsSigning(true);
+    if (!receiverAddress.trim()) {
+      setError("Enter a receiver address.");
+      return;
+    }
+
+    if (!lovelaceAmount.trim()) {
+      setError("Enter an amount in lovelace.");
+      return;
+    }
+
+    const parsedAmount = Number(lovelaceAmount.trim());
+    if (
+      !Number.isInteger(parsedAmount) ||
+      parsedAmount <= 0 ||
+      !Number.isSafeInteger(parsedAmount)
+    ) {
+      setError("Amount must be a positive whole number of lovelace.");
+      return;
+    }
+
+    setRequestPhase("generating");
 
     try {
+      const apiTx = await getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient(
+        selectedWalletPublicKeyHash,
+        receiverAddress.trim(),
+        [parsedAmount],
+        cardanoApiFetch
+      );
+
+      setGeneratedTransaction(apiTx);
+      setRequestPhase("signing");
+
       const authorizationSignature = await generateAuthorizationSignature({
         version: 1,
         method: "POST",
         url: `https://api.privy.io/v1/wallets/${selectedWalletId}/raw_sign`,
         body: {
           params: {
-            bytes: btoa(
-              transactionHex
-                .trim()
-                .replace(/^0x/, "")
-                .match(/.{1,2}/g)!
-                .map((byte) => String.fromCharCode(parseInt(byte, 16)))
-                .join("")
-            ),
-            encoding: "base64",
-            hash_function: "blake2b256",
+            hash: `0x${normalizeHexPayload(apiTx.tx_body_hash)}`,
           },
         },
         headers: {
@@ -209,7 +389,7 @@ function App() {
         },
         body: JSON.stringify({
           walletId: selectedWalletId,
-          transactionHex,
+          payloadHex: apiTx.tx_body_hash,
           authorizationSignature: authorizationSignature.signature,
         }),
       });
@@ -220,15 +400,77 @@ function App() {
         throw new Error(data.error ?? "raw_sign failed.");
       }
 
-      setSignatureHex(data.signature);
+      setSignature(data.signature);
     } catch (requestError) {
-      const message =
-        requestError instanceof Error
-          ? requestError.message
-          : "raw_sign failed.";
-      setError(message);
+      setError(
+        getRequestErrorMessage(
+          requestError,
+          "Failed to generate and sign the transaction."
+        )
+      );
     } finally {
-      setIsSigning(false);
+      setRequestPhase("idle");
+    }
+  };
+
+  const handleSubmitTransaction = async () => {
+    setError("");
+    setSubmittedTxId("");
+
+    if (!generatedTransaction) {
+      setError("Generate a transaction before submitting it.");
+      return;
+    }
+
+    if (!signature) {
+      setError("Sign the transaction hash before submitting the transaction.");
+      return;
+    }
+
+    if (!selectedWalletPublicKeyHash) {
+      setError("The selected wallet is missing a Cardano public key.");
+      return;
+    }
+
+    setRequestPhase("submitting");
+
+    try {
+      const response = await cardanoApiFetch("/api/v1/submit_tx", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transaction: generatedTransaction.transaction,
+          witnesses: [
+            {
+              public_key: selectedWalletPublicKeyHash,
+              signature: normalizeHexPayload(signature),
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const txId = ((await response.json()) as string).trim();
+
+      if (!txId) {
+        throw new Error("submit_tx returned an empty transaction ID.");
+      }
+
+      setSubmittedTxId(txId);
+    } catch (requestError) {
+      setError(
+        getRequestErrorMessage(
+          requestError,
+          "Failed to submit the signed transaction."
+        )
+      );
+    } finally {
+      setRequestPhase("idle");
     }
   };
 
@@ -272,17 +514,18 @@ function App() {
           <Card className="max-w-3xl overflow-hidden border-black/5 bg-[linear-gradient(145deg,rgba(255,253,248,0.98),rgba(250,244,232,0.94))]">
             <CardHeader className="gap-4">
               <Badge variant="secondary" className="w-fit">
-                Privy Raw Sign Demo
+                Privy Cardano Demo
               </Badge>
               <CardTitle className="max-w-2xl text-4xl sm:text-6xl">
-                Log in, paste a serialized transaction, and sign it remotely.
+                Log in, generate a Cardano transaction, and sign its hash remotely.
               </CardTitle>
               <CardDescription className="max-w-2xl text-base sm:text-lg">
-                This screen sends your hex payload through Privy&apos;s
+                This screen builds a Cardano transaction through the wallet API,
+                then sends the returned tx body hash through Privy&apos;s
                 <code className="mx-1 rounded-md bg-black/5 px-1.5 py-0.5 text-sm">
                   raw_sign
                 </code>
-                endpoint and returns the signature as hex.
+                endpoint and returns the signature.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 pt-0 sm:flex-row sm:items-center sm:justify-between">
@@ -290,7 +533,7 @@ function App() {
                 <ShieldCheck className="mb-3 size-4 text-muted-foreground" />
                 <AlertTitle>Remote signing with a Sui embedded wallet</AlertTitle>
                 <AlertDescription>
-                  The API route signs the bytes you provide with hashing fixed to
+                  The API route signs the returned tx body hash with hashing fixed to
                   <code className="mx-1 rounded-md bg-black/5 px-1.5 py-0.5 text-xs">
                     blake2b256
                   </code>
@@ -321,24 +564,25 @@ function App() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="secondary">Privy Raw Sign Demo</Badge>
+              <Badge variant="secondary">Privy Cardano Demo</Badge>
               <Badge variant={eligibleWallets.length > 0 ? "default" : "outline"}>
                 {eligibleWallets.length > 0 ? "Wallet Ready" : "Wallet Needed"}
               </Badge>
             </div>
             <h1 className="mt-4 text-3xl leading-tight font-abc-favorit sm:text-5xl">
-              Sign a serialized transaction in hex.
+              Privy on Cardano
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
-              The server route forwards the serialized bytes to Privy&apos;s
-              <code className="mx-1 rounded-md bg-black/5 px-1.5 py-0.5 text-sm text-foreground">
-                raw_sign
-              </code>
-              endpoint using a Sui embedded wallet. Hashing is fixed to
-              <code className="mx-1 rounded-md bg-black/5 px-1.5 py-0.5 text-sm text-foreground">
-                blake2b256
-              </code>
-              in this demo.
+              Use{" "}
+              <a
+                href="https://privy.io"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-4"
+              >
+                Privy
+              </a>{" "}
+              to manage your funds on Cardano.
             </p>
           </div>
           <Button variant="outline" onClick={() => logout()}>
@@ -352,13 +596,13 @@ function App() {
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Signing request</CardTitle>
+                  <CardTitle>Transaction request</CardTitle>
                   <CardDescription>
-                    Choose a wallet, review its public key, then submit a
-                    serialized transaction.
+                    Choose a wallet, enter a receiver and lovelace amount, then
+                    generate a transaction and sign its tx body hash.
                   </CardDescription>
                 </div>
-                <Badge variant="outline">POST /api/raw-sign</Badge>
+                <Badge variant="outline">Build + Sign</Badge>
               </div>
             </CardHeader>
             <CardContent className="grid gap-6">
@@ -459,37 +703,136 @@ function App() {
                   readOnly
                   spellCheck={false}
                 />
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="grid gap-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Cardano address
+                    </div>
+                    <div className="rounded-md border border-black/5 bg-[#fbfaf7] px-3 py-4">
+                      {isWalletInfoLoading ? (
+                        <p className="font-mono text-sm text-muted-foreground">
+                          Loading Cardano address...
+                        </p>
+                      ) : walletInfo?.address ? (
+                        <div className="grid gap-2">
+                          <p className="break-all font-mono text-sm">
+                            {walletInfo.address}
+                          </p>
+                          <a
+                            href={`https://preprod.cexplorer.io/address/${walletInfo.address}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm underline underline-offset-4"
+                          >
+                            View on CExplorer
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="font-mono text-sm text-muted-foreground">
+                          Select a wallet to derive its Cardano address.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Wallet balance
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!selectedWalletPublicKeyHash || isWalletInfoLoading}
+                        onClick={() => setWalletInfoRefreshKey((value) => value + 1)}
+                      >
+                        {isWalletInfoLoading ? (
+                          <LoaderCircle className="animate-spin" />
+                        ) : null}
+                        Refresh
+                      </Button>
+                    </div>
+                    <div className="rounded-md border border-black/5 bg-[#fbfaf7] px-3 py-4">
+                      <p className="font-mono text-sm">
+                        {isWalletInfoLoading
+                          ? "Loading wallet balance..."
+                          : formatWalletBalance(walletInfo?.balance)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {walletInfoError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Wallet lookup failed</AlertTitle>
+                    <AlertDescription>{walletInfoError}</AlertDescription>
+                  </Alert>
+                ) : null}
               </div>
 
               <div className="grid gap-3">
-                <label
-                  htmlFor="transaction-hex"
-                  className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
-                >
-                  Serialized transaction hex
-                </label>
-                <Textarea
-                  id="transaction-hex"
-                  className="min-h-56 bg-white font-mono"
-                  placeholder="Paste hex bytes here. 0x prefix is optional."
-                  value={transactionHex}
-                  onChange={(event) => setTransactionHex(event.target.value)}
-                  spellCheck={false}
-                />
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(12rem,1fr)]">
+                  <div className="grid gap-3">
+                    <label
+                      htmlFor="receiver-address"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                    >
+                      Receiver address
+                    </label>
+                    <Textarea
+                      id="receiver-address"
+                      className="min-h-32 bg-white font-mono"
+                      placeholder="addr_test1..."
+                      value={receiverAddress}
+                      onChange={(event) => setReceiverAddress(event.target.value)}
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="grid gap-3">
+                    <label
+                      htmlFor="lovelace-amount"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                    >
+                      Amount (lovelace)
+                    </label>
+                    <input
+                      id="lovelace-amount"
+                      type="text"
+                      inputMode="numeric"
+                      className="h-11 rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      placeholder="1000000"
+                      value={lovelaceAmount}
+                      onChange={(event) => setLovelaceAmount(event.target.value)}
+                    />
+                    <p className="text-xs leading-6 text-muted-foreground">
+                      Use whole lovelace values only.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col gap-3">
                 <Button
                   size="lg"
-                  disabled={isSigning || eligibleWallets.length === 0}
-                  onClick={handleSign}
+                  disabled={
+                    isSubmittingRequest ||
+                    eligibleWallets.length === 0 ||
+                    !selectedWalletPublicKeyHash
+                  }
+                  onClick={handleGenerateTransaction}
                 >
-                  {isSigning ? <LoaderCircle className="animate-spin" /> : null}
-                  {isSigning ? "Signing..." : "Call raw_sign"}
+                  {isSubmittingRequest ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : null}
+                  {requestPhase === "generating"
+                    ? "Generating transaction..."
+                    : requestPhase === "signing"
+                      ? "Signing transaction hash..."
+                      : requestPhase === "submitting"
+                        ? "Submitting transaction..."
+                      : "Generate transaction"}
                 </Button>
                 {error ? (
                   <Alert variant="destructive">
-                    <AlertTitle>Signing failed</AlertTitle>
+                    <AlertTitle>Request failed</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 ) : null}
@@ -498,27 +841,94 @@ function App() {
           </Card>
           <Card className="border-black/5 bg-[#fffdf8]/95">
             <CardHeader>
-              <CardTitle>Signature</CardTitle>
+              <CardTitle>Generated Outputs</CardTitle>
               <CardDescription>
-                The hex signature returned by Privy appears here after a
-                successful request.
+                Review the generated tx body hash, the transaction envelope, and
+                the signature returned by Privy.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               <label
-                htmlFor="signature-hex"
+                htmlFor="tx-body-hash"
                 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
               >
-                Signature hex
+                Tx body hash
               </label>
               <Textarea
-                id="signature-hex"
-                className="min-h-56 bg-[#fbfaf7] font-mono"
-                placeholder="The signature returned by raw_sign will appear here."
-                value={signatureHex}
+                id="tx-body-hash"
+                className="min-h-28 bg-[#fbfaf7] font-mono"
+                placeholder="The generated tx body hash will appear here."
+                value={generatedTransaction?.tx_body_hash ?? ""}
                 readOnly
                 spellCheck={false}
               />
+              <label
+                htmlFor="generated-transaction-cbor"
+                className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                Generated transaction cborHex
+              </label>
+              <Textarea
+                id="generated-transaction-cbor"
+                className="min-h-40 bg-[#fbfaf7] font-mono"
+                placeholder="The generated transaction envelope will appear here."
+                value={generatedTransaction?.transaction.cborHex ?? ""}
+                readOnly
+                spellCheck={false}
+              />
+              <label
+                htmlFor="signature"
+                className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                Signature
+              </label>
+              <Textarea
+                id="signature"
+                className="min-h-56 bg-[#fbfaf7] font-mono"
+                placeholder="The signature returned by raw_sign will appear here."
+                value={signature}
+                readOnly
+                spellCheck={false}
+              />
+              <label
+                htmlFor="submitted-tx-id"
+                className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                Submitted transaction ID
+              </label>
+              <Textarea
+                id="submitted-tx-id"
+                className="min-h-24 bg-[#fbfaf7] font-mono"
+                placeholder="The submitted transaction ID will appear here."
+                value={submittedTxId}
+                readOnly
+                spellCheck={false}
+              />
+              {submittedTxId ? (
+                <a
+                  href={`https://preprod.cexplorer.io/tx/${submittedTxId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm underline underline-offset-4"
+                >
+                  View submitted transaction on CExplorer
+                </a>
+              ) : null}
+              <Button
+                size="lg"
+                disabled={
+                  isSubmittingRequest ||
+                  !generatedTransaction ||
+                  !signature ||
+                  !selectedWalletPublicKeyHash
+                }
+                onClick={handleSubmitTransaction}
+              >
+                {requestPhase === "submitting" ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : null}
+                Submit transaction
+              </Button>
             </CardContent>
           </Card>
         </div>
