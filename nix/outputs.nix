@@ -35,6 +35,10 @@ let
       type = "app";
       program = lib.getExe projectFlake.packages."privy-cardano-api:exe:export-openapi-schema";
     };
+    privy-cardano-cli = {
+      type = "app";
+      program = lib.getExe projectFlake.packages."privy-cardano-api:exe:privy-cardano-cli";
+    };
   };
 
   defaultHydraJobs = { 
