@@ -321,24 +321,25 @@ function App() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="secondary">Privy Raw Sign Demo</Badge>
+              <Badge variant="secondary">Privy Cardano Demo</Badge>
               <Badge variant={eligibleWallets.length > 0 ? "default" : "outline"}>
                 {eligibleWallets.length > 0 ? "Wallet Ready" : "Wallet Needed"}
               </Badge>
             </div>
             <h1 className="mt-4 text-3xl leading-tight font-abc-favorit sm:text-5xl">
-              Sign a serialized transaction in hex.
+              Privy on Cardano
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
-              The server route forwards the serialized bytes to Privy&apos;s
-              <code className="mx-1 rounded-md bg-black/5 px-1.5 py-0.5 text-sm text-foreground">
-                raw_sign
-              </code>
-              endpoint using a Sui embedded wallet. Hashing is fixed to
-              <code className="mx-1 rounded-md bg-black/5 px-1.5 py-0.5 text-sm text-foreground">
-                blake2b256
-              </code>
-              in this demo.
+              Use{" "}
+              <a
+                href="https://privy.io"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-4"
+              >
+                Privy
+              </a>{" "}
+              to manage your funds on Cardano.
             </p>
           </div>
           <Button variant="outline" onClick={() => logout()}>
