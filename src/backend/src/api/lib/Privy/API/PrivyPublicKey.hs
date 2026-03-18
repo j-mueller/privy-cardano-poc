@@ -66,10 +66,18 @@ data PrivyPublicKeyError
 makeClassyPrisms ''PrivyPublicKeyError
 
 toPublicKey :: (MonadError err m, AsPrivyPublicKeyError err) => PrivyPublicKey -> m (C.VerificationKey C.PaymentKey)
-toPublicKey (PrivyPublicKey publicKeyHash) =
+toPublicKey (PrivyPublicKey publicKey) =
     liftEither $
         first (L.review _PrivyPublicKeyConversionFailed) $
-            (C.deserialiseFromRawBytesHex (Enc.encodeUtf8 publicKeyHash) :: Either C.RawBytesHexError (C.VerificationKey C.PaymentKey))
+            ( C.deserialiseFromRawBytesHex
+                (Enc.encodeUtf8 normalizedPublicKey) ::
+                Either C.RawBytesHexError (C.VerificationKey C.PaymentKey)
+            )
+  where
+    -- Privy's Sui wallet public keys include a leading 0x00 scheme byte for Ed25519.
+    normalizedPublicKey
+        | Text.length publicKey == 66 && Text.isPrefixOf "00" publicKey = Text.drop 2 publicKey
+        | otherwise = publicKey
 
 toPublicKeyHash :: (MonadError err m, AsPrivyPublicKeyError err) => PrivyPublicKey -> m (C.Hash C.PaymentKey)
 toPublicKeyHash =

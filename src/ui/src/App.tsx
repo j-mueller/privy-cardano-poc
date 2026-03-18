@@ -131,6 +131,16 @@ function normalizePublicKeyToHex(publicKey: string | undefined): string {
   }
 }
 
+function normalizePublicKeyForCardanoApi(publicKeyHex: string): string {
+  const normalized = publicKeyHex.replace(/^0x/i, "");
+
+  if (normalized.length === 66 && normalized.startsWith("00")) {
+    return normalized.slice(2);
+  }
+
+  return normalized;
+}
+
 function formatWalletBalance(balance: WalletInfo["balance"] | undefined): string {
   if (!balance || balance.length === 0) {
     return "No balance found for this wallet.";
@@ -138,7 +148,7 @@ function formatWalletBalance(balance: WalletInfo["balance"] | undefined): string
 
   return balance
     .map(([assetId, quantity]) => `${quantity.toLocaleString()} ${assetId}`)
-    .join("\n");
+    .join(" • ");
 }
 
 function App() {
@@ -156,6 +166,7 @@ function App() {
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
   const [walletInfoError, setWalletInfoError] = useState("");
   const [isWalletInfoLoading, setIsWalletInfoLoading] = useState(false);
+  const [walletInfoRefreshKey, setWalletInfoRefreshKey] = useState(0);
 
   const eligibleWallets = useMemo(
     () => getEligibleWallets(user?.linkedAccounts),
@@ -175,10 +186,8 @@ function App() {
   const selectedWalletPublicKeyHex = normalizePublicKeyToHex(
     selectedWallet?.publicKey
   );
-  const selectedWalletPublicKeyHash = selectedWalletPublicKeyHex.replace(
-    /^0x/i,
-    ""
-  );
+  const selectedWalletPublicKeyHash =
+    normalizePublicKeyForCardanoApi(selectedWalletPublicKeyHex);
 
   useEffect(() => {
     let isCancelled = false;
@@ -232,7 +241,7 @@ function App() {
     return () => {
       isCancelled = true;
     };
-  }, [selectedWalletPublicKeyHash]);
+  }, [selectedWalletPublicKeyHash, walletInfoRefreshKey]);
 
   const handleProvisionWallet = async () => {
     setError("");
@@ -554,44 +563,59 @@ function App() {
                 />
                 <div className="grid gap-3 lg:grid-cols-2">
                   <div className="grid gap-3">
-                    <label
-                      htmlFor="wallet-cardano-address"
-                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
-                    >
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Cardano address
-                    </label>
-                    <Textarea
-                      id="wallet-cardano-address"
-                      className="min-h-32 bg-[#fbfaf7] font-mono"
-                      placeholder="Select a wallet to derive its Cardano address."
-                      value={
-                        isWalletInfoLoading
-                          ? "Loading Cardano address..."
-                          : walletInfo?.address ?? ""
-                      }
-                      readOnly
-                      spellCheck={false}
-                    />
+                    </div>
+                    <div className="rounded-md border border-black/5 bg-[#fbfaf7] px-3 py-4">
+                      {isWalletInfoLoading ? (
+                        <p className="font-mono text-sm text-muted-foreground">
+                          Loading Cardano address...
+                        </p>
+                      ) : walletInfo?.address ? (
+                        <div className="grid gap-2">
+                          <p className="break-all font-mono text-sm">
+                            {walletInfo.address}
+                          </p>
+                          <a
+                            href={`https://preprod.cexplorer.io/address/${walletInfo.address}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm underline underline-offset-4"
+                          >
+                            View on CExplorer
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="font-mono text-sm text-muted-foreground">
+                          Select a wallet to derive its Cardano address.
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div className="grid gap-3">
-                    <label
-                      htmlFor="wallet-balance"
-                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
-                    >
-                      Wallet balance
-                    </label>
-                    <Textarea
-                      id="wallet-balance"
-                      className="min-h-32 bg-[#fbfaf7] font-mono"
-                      placeholder="Select a wallet to load its Cardano balance."
-                      value={
-                        isWalletInfoLoading
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Wallet balance
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!selectedWalletPublicKeyHash || isWalletInfoLoading}
+                        onClick={() => setWalletInfoRefreshKey((value) => value + 1)}
+                      >
+                        {isWalletInfoLoading ? (
+                          <LoaderCircle className="animate-spin" />
+                        ) : null}
+                        Refresh
+                      </Button>
+                    </div>
+                    <div className="rounded-md border border-black/5 bg-[#fbfaf7] px-3 py-4">
+                      <p className="font-mono text-sm">
+                        {isWalletInfoLoading
                           ? "Loading wallet balance..."
-                          : formatWalletBalance(walletInfo?.balance)
-                      }
-                      readOnly
-                      spellCheck={false}
-                    />
+                          : formatWalletBalance(walletInfo?.balance)}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 {walletInfoError ? (
