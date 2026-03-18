@@ -1,31 +1,39 @@
-type BadgeVariant =
-  | "default"
-  | "success"
-  | "warning"
-  | "destructive"
-  | "outline";
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
-  variant?: BadgeVariant;
-};
+import { cn } from "@/lib/utils";
 
-const variantToClasses: Record<BadgeVariant, string> = {
-  default: "badge",
-  success: "badge badge-success",
-  warning: "badge badge-warning",
-  destructive: "badge badge-destructive",
-  outline: "badge badge-outline",
-};
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium tracking-[0.16em] uppercase whitespace-nowrap transition-colors",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+);
 
-export function Badge({
-  variant = "default",
-  className,
-  ...props
-}: BadgeProps) {
+type BadgeProps = React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants>;
+
+function Badge({ className, variant, ...props }: BadgeProps) {
   return (
     <span
-      className={[variantToClasses[variant], className ?? ""].join(" ")}
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
       {...props}
     />
   );
 }
+
+export { Badge, badgeVariants };
