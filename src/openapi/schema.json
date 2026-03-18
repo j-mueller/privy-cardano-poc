@@ -6,6 +6,21 @@
                 "example": "addr_test1qpju2uhn72ur6j5alln6nz7dqcgcjal7xjaw7lwdjdaex4qhr3xpz63fjwvlpsnu8efnhfdja78d3vkv8ks6ac09g3usemu2yl",
                 "type": "string"
             },
+            "ApiTx_ConwayEra": {
+                "properties": {
+                    "transaction": {
+                        "$ref": "#/components/schemas/TextEnvelopeJSON"
+                    },
+                    "tx_body_hash": {
+                        "$ref": "#/components/schemas/TxBodyHash"
+                    }
+                },
+                "required": [
+                    "transaction",
+                    "tx_body_hash"
+                ],
+                "type": "object"
+            },
             "AssetId": {
                 "description": "Cardano asset ID, either 'lovelace' or POLICY_ID.TOKEN_NAME",
                 "type": "string"
@@ -30,6 +45,10 @@
                     }
                 },
                 "type": "object"
+            },
+            "TxBodyHash": {
+                "description": "Hex-encoded Cardano transaction body hash",
+                "type": "string"
             },
             "WalletInfo": {
                 "properties": {
@@ -148,7 +167,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/TextEnvelopeJSON"
+                                    "$ref": "#/components/schemas/ApiTx_ConwayEra"
                                 }
                             }
                         },

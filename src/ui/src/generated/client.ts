@@ -21,7 +21,7 @@ export function getApiV1WalletByPublicKey(public_key: string, fetchFn?: (input: 
   });
 }
 
-export function getApiV1WalletByPublicKeySendFundsByRecipient(public_key: string, recipient: string, lovelace?: number[], fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<TextEnvelopeJsonDummy> {
+export function getApiV1WalletByPublicKeySendFundsByRecipient(public_key: string, recipient: string, lovelace?: number[], fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<ApiTxDummy> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,
     method: "GET",

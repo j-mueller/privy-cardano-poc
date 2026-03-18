@@ -28,7 +28,7 @@ import Data.Set qualified as Set
 import GHC.Exts (fromList)
 import GHC.Generics (Generic)
 import Privy.API.SerialiseAddress (SerialiseAddress (..))
-import Privy.API.TextEnvelope (TextEnvelopeJSON (..))
+import Privy.API.Tx (ApiTx, apiTx)
 import Privy.Orphans ()
 
 data SendFundsError
@@ -103,7 +103,7 @@ sendFunds ::
     , CoinSelection.AsCoinSelectionError err
     ) =>
     SendFundsRequest ->
-    m (TextEnvelopeJSON (C.Tx era))
+    m (ApiTx era)
 sendFunds request@SendFundsRequest{sfSenders, sfReceiver} =
     case fmap unSerialiseAddress sfSenders of
         [] -> throwing_ _NoSenders
@@ -130,7 +130,7 @@ sendFunds request@SendFundsRequest{sfSenders, sfReceiver} =
                     txBuilder
                     CoinSelection.TrailingChange
             pure $
-                TextEnvelopeJSON $
+                apiTx $
                     CoinSelection.signBalancedTxBody [] balancedTxBody
 
 paymentCredentialFromAddress :: C.Address C.ShelleyAddr -> C.PaymentCredential
