@@ -13,6 +13,24 @@
             "Quantity": {
                 "type": "integer"
             },
+            "TextEnvelopeJSON": {
+                "description": "Text envelope",
+                "properties": {
+                    "cborHex": {
+                        "description": "The CBOR-serialised value, base-16 encoded",
+                        "type": "string"
+                    },
+                    "description": {
+                        "description": "Description of the serialised value",
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "Type of the serialised value",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "WalletInfo": {
                 "properties": {
                     "address": {
@@ -88,6 +106,59 @@
                     },
                     "404": {
                         "description": "`public_key` not found"
+                    }
+                }
+            }
+        },
+        "/api/v1/wallet/{public_key}/send_funds/{recipient}": {
+            "get": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "public_key",
+                        "required": true,
+                        "schema": {
+                            "description": "Privy wallet public key",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "recipient",
+                        "required": true,
+                        "schema": {
+                            "description": "bech32-serialised cardano address",
+                            "example": "addr1q9d42egme33z960rr8vlnt69lpmythdpm7ydk2e6k5nj5ghay9rg60vw49kejfah76sqeh4yshlsntgg007y0wgjlfwju6eksr",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "lovelace",
+                        "schema": {
+                            "items": {
+                                "type": "integer"
+                            },
+                            "type": "array"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TextEnvelopeJSON"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `lovelace`"
+                    },
+                    "404": {
+                        "description": "`public_key` or `recipient` not found"
                     }
                 }
             }

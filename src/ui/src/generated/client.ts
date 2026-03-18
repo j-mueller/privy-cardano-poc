@@ -21,6 +21,25 @@ export function getApiV1WalletByPublicKey(public_key: string, fetchFn?: (input: 
   });
 }
 
+export function getApiV1WalletByPublicKeySendFundsByRecipient(public_key: string, recipient: string, lovelace?: number[], fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<TextEnvelopeJsonDummy> {
+  let options: RequestInit = {
+    credentials: "same-origin" as RequestCredentials,
+    method: "GET",
+    headers: {"Content-Type": "application/json;charset=utf-8"}
+  };
+  
+  let params = {lovelace};
+  return (fetchFn || window.fetch)(`/api/v1/wallet/${public_key}/send_funds/${recipient}` + "?" + queryString.stringify(params), options).then((response) => {
+    return new Promise((resolve, reject) => {
+      if (response.status !== 200) {
+        return response.text().then((text) => reject({text, status: response.status}));
+      } else {
+        return response.json().then((json) => resolve(json));
+      }
+    });
+  });
+}
+
 export function getApiV1Healthcheck(fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<{}> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,
