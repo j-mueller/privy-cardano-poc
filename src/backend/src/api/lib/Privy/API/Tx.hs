@@ -3,6 +3,8 @@
 
 module Privy.API.Tx (
     ApiTx,
+    ApiTxDummy,
+    txApiTypeScriptExtraTypes,
     apiTx,
 ) where
 
@@ -13,7 +15,7 @@ import Cardano.Ledger.Hashes qualified as LedgerHashes
 import Control.Lens ((&), (?~))
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.TypeScript.TH (TypeScript (..), deriveTypeScript)
+import Data.Aeson.TypeScript.TH (TSType (..), TypeScript (..), deriveTypeScript)
 import Data.ByteString.Base16 qualified as Base16
 import Data.OpenApi (NamedSchema (..))
 import Data.OpenApi.Internal (OpenApiType (OpenApiString))
@@ -88,6 +90,12 @@ instance (C.IsShelleyBasedEra era) => FromJSON (ApiTx era) where
     parseJSON = Aeson.genericParseJSON apiTxOptions
 
 $(deriveTypeScript (Aeson.defaultOptions{Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 3}) ''ApiTxDummy)
+
+txApiTypeScriptExtraTypes :: [TSType]
+txApiTypeScriptExtraTypes =
+    [ TSType (Proxy @ApiTxDummy)
+    , TSType (Proxy @TextEnvelopeJsonDummy)
+    ]
 
 instance (Typeable era) => TypeScript (ApiTx era) where
     getTypeScriptType _ = getTypeScriptType (Proxy @ApiTxDummy)
