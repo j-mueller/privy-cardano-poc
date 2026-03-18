@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { getApiV1WalletByPublicKey } from "@/generated/client";
 
 type EligibleWallet = {
   id: string;
@@ -46,6 +47,26 @@ type RawSignResponse = {
   signature?: string;
   error?: string;
 };
+
+const cardanoServerUrl = import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL?.replace(
+  /\/$/,
+  ""
+);
+
+function cardanoApiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  if (!cardanoServerUrl) {
+    throw new Error("Missing VITE_PRIVY_CARDANO_SERVER_URL.");
+  }
+
+  if (typeof input === "string") {
+    return fetch(`${cardanoServerUrl}${input}`, init);
+  }
+
+  return fetch(input, init);
+}
 
 function getEligibleWallets(
   linkedAccounts: LinkedAccountWithMetadata[] | undefined
@@ -110,6 +131,16 @@ function normalizePublicKeyToHex(publicKey: string | undefined): string {
   }
 }
 
+function formatWalletBalance(balance: WalletInfo["balance"] | undefined): string {
+  if (!balance || balance.length === 0) {
+    return "No balance found for this wallet.";
+  }
+
+  return balance
+    .map(([assetId, quantity]) => `${quantity.toLocaleString()} ${assetId}`)
+    .join("\n");
+}
+
 function App() {
   const { ready, authenticated, login, logout, user } = usePrivy();
   const { refreshUser } = useUser();
@@ -122,6 +153,9 @@ function App() {
   const [isSigning, setIsSigning] = useState(false);
   const [isProvisioningWallet, setIsProvisioningWallet] = useState(false);
   const [hasCopiedPublicKey, setHasCopiedPublicKey] = useState(false);
+  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
+  const [walletInfoError, setWalletInfoError] = useState("");
+  const [isWalletInfoLoading, setIsWalletInfoLoading] = useState(false);
 
   const eligibleWallets = useMemo(
     () => getEligibleWallets(user?.linkedAccounts),
@@ -141,6 +175,64 @@ function App() {
   const selectedWalletPublicKeyHex = normalizePublicKeyToHex(
     selectedWallet?.publicKey
   );
+  const selectedWalletPublicKeyHash = selectedWalletPublicKeyHex.replace(
+    /^0x/i,
+    ""
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!selectedWalletPublicKeyHash) {
+      setWalletInfo(null);
+      setWalletInfoError("");
+      setIsWalletInfoLoading(false);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    setIsWalletInfoLoading(true);
+    setWalletInfoError("");
+
+    void getApiV1WalletByPublicKey(selectedWalletPublicKeyHash, cardanoApiFetch)
+      .then((nextWalletInfo) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setWalletInfo(nextWalletInfo);
+      })
+      .catch((requestError: unknown) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setWalletInfo(null);
+        setWalletInfoError(
+          requestError &&
+            typeof requestError === "object" &&
+            "text" in requestError &&
+            typeof requestError.text === "string" &&
+            requestError.text.length > 0
+            ? requestError.text
+            : requestError instanceof Error
+              ? requestError.message
+              : "Failed to load Cardano wallet info."
+        );
+      })
+      .finally(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        setIsWalletInfoLoading(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedWalletPublicKeyHash]);
 
   const handleProvisionWallet = async () => {
     setError("");
@@ -460,6 +552,54 @@ function App() {
                   readOnly
                   spellCheck={false}
                 />
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="grid gap-3">
+                    <label
+                      htmlFor="wallet-cardano-address"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                    >
+                      Cardano address
+                    </label>
+                    <Textarea
+                      id="wallet-cardano-address"
+                      className="min-h-32 bg-[#fbfaf7] font-mono"
+                      placeholder="Select a wallet to derive its Cardano address."
+                      value={
+                        isWalletInfoLoading
+                          ? "Loading Cardano address..."
+                          : walletInfo?.address ?? ""
+                      }
+                      readOnly
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="grid gap-3">
+                    <label
+                      htmlFor="wallet-balance"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                    >
+                      Wallet balance
+                    </label>
+                    <Textarea
+                      id="wallet-balance"
+                      className="min-h-32 bg-[#fbfaf7] font-mono"
+                      placeholder="Select a wallet to load its Cardano balance."
+                      value={
+                        isWalletInfoLoading
+                          ? "Loading wallet balance..."
+                          : formatWalletBalance(walletInfo?.balance)
+                      }
+                      readOnly
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+                {walletInfoError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Wallet lookup failed</AlertTitle>
+                    <AlertDescription>{walletInfoError}</AlertDescription>
+                  </Alert>
+                ) : null}
               </div>
 
               <div className="grid gap-3">

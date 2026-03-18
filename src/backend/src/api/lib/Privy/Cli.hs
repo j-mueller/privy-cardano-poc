@@ -15,6 +15,7 @@ import Data.ByteString.Lazy.Char8 qualified as LBS8
 import Data.Proxy (Proxy (..))
 import Data.Text qualified as Text
 import Network.Wai.Handler.Warp qualified as Warp
+import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, simpleCorsResourcePolicy)
 import Privy.API (APIInEra)
 import Privy.API.PrivyPublicKey (PrivyPublicKeyError)
 import Privy.API.Wallet qualified as Wallet
@@ -26,13 +27,22 @@ import Text.Read (readMaybe)
 
 type AppM = ExceptT PrivyPublicKeyError (BlockfrostT IO)
 
+corsPolicy :: CorsResourcePolicy
+corsPolicy =
+    simpleCorsResourcePolicy
+        { corsMethods = ["GET", "POST", "OPTIONS", "DELETE"]
+        , corsRequestHeaders = ["Content-Type", "Authorization", "X-Cardano-Wallet", "X-Request-Id"]
+        , corsMaxAge = Nothing
+        }
+
 main :: IO ()
 main = do
     port <- getPort
     project <- getBlockfrostProject
     Warp.run port $
-        serve (Proxy @APIInEra) $
-            hoistServer (Proxy @APIInEra) (runApp project) server
+        cors (const $ Just corsPolicy) $
+            serve (Proxy @APIInEra) $
+                hoistServer (Proxy @APIInEra) (runApp project) server
 
 server :: ServerT APIInEra AppM
 server =

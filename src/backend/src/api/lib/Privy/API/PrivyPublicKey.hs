@@ -6,6 +6,7 @@ module Privy.API.PrivyPublicKey (
     PrivyPublicKey (..),
     PrivyPublicKeyError (..),
     AsPrivyPublicKeyError (..),
+    toPublicKey,
     toPublicKeyHash,
     toCardanoAddress,
 ) where
@@ -64,11 +65,15 @@ data PrivyPublicKeyError
 
 makeClassyPrisms ''PrivyPublicKeyError
 
-toPublicKeyHash :: (MonadError err m, AsPrivyPublicKeyError err) => PrivyPublicKey -> m (C.Hash C.PaymentKey)
-toPublicKeyHash (PrivyPublicKey publicKeyHash) =
+toPublicKey :: (MonadError err m, AsPrivyPublicKeyError err) => PrivyPublicKey -> m (C.VerificationKey C.PaymentKey)
+toPublicKey (PrivyPublicKey publicKeyHash) =
     liftEither $
         first (L.review _PrivyPublicKeyConversionFailed) $
-            C.deserialiseFromRawBytesHex (Enc.encodeUtf8 publicKeyHash)
+            (C.deserialiseFromRawBytesHex (Enc.encodeUtf8 publicKeyHash) :: Either C.RawBytesHexError (C.VerificationKey C.PaymentKey))
+
+toPublicKeyHash :: (MonadError err m, AsPrivyPublicKeyError err) => PrivyPublicKey -> m (C.Hash C.PaymentKey)
+toPublicKeyHash =
+    fmap C.verificationKeyHash . toPublicKey
 
 toCardanoAddress ::
     ( MonadBlockchain era m
