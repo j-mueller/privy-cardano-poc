@@ -7,12 +7,12 @@ where
 
 import Data.Proxy (Proxy (..))
 import Data.String.Interpolate (i)
+import Privy.API (APIInEra)
 import Servant.TypeScript (
     defaultServantTypeScriptOptions,
     getFunctions,
     writeTypeScriptLibrary',
  )
-import Surge.Prices.Api.Api (APIInEra)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 

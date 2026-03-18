@@ -30,9 +30,9 @@ import Database.PostgreSQL.Simple.ToField qualified as Postgres
 import Database.SQLite.Simple.FromField (FromField (..))
 import Database.SQLite.Simple.Ok (Ok (..))
 import Database.SQLite.Simple.ToField (ToField (..))
+import Privy.Orphans ()
+import Privy.Utils.Serialise (SerialiseRawBytes (..))
 import Servant.API (FromHttpApiData (..), ToHttpApiData (..))
-import Surge.Orphans ()
-import Surge.Utils.Serialise (SerialiseRawBytes (..))
 
 newtype SerialiseAddress a = SerialiseAddress {unSerialiseAddress :: a}
     deriving newtype (Eq, Show)

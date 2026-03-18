@@ -53,6 +53,10 @@ library
     Privy.API.PrivyPublicKey
     Privy.API.SerialiseAddress
 
+  other-modules:
+    Privy.Orphans
+    Privy.Utils.Serialise
+
   hs-source-dirs:  lib
   build-depends:
     , aeson
@@ -125,9 +129,9 @@ executable export-typescript-api
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   build-depends:
     , base
+    , privy-cardano-api
     , servant-typescript  >=0.1.0.3
     , string-interpolate
-    , privy-cardano-api
 
 executable export-openapi-schema
   import:         lang
@@ -137,5 +141,5 @@ executable export-openapi-schema
     , aeson-pretty
     , base
     , bytestring
-    , servant-openapi3
     , privy-cardano-api
+    , servant-openapi3
