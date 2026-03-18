@@ -1,4 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Privy.Cli (
@@ -9,15 +11,18 @@ import Blockfrost.Auth (mkProject)
 import Blockfrost.Client.Auth (Project)
 import Blockfrost.Client.Types (BlockfrostError)
 import Cardano.Api qualified as C
+import Control.Lens (makePrisms)
 import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import Convex.Blockfrost (BlockfrostT, evalBlockfrostT)
+import Convex.CoinSelection (AsBalancingError (..), AsCoinSelectionError (..), BalancingError, CoinSelectionError)
 import Data.ByteString.Lazy.Char8 qualified as LBS8
 import Data.Proxy (Proxy (..))
 import Data.Text qualified as Text
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, simpleCorsResourcePolicy)
 import Privy.API (APIInEra)
-import Privy.API.PrivyPublicKey (PrivyPublicKeyError)
+import Privy.API.PrivyPublicKey (AsPrivyPublicKeyError (..), PrivyPublicKeyError)
+import Privy.API.SendFunds qualified as SendFunds
 import Privy.API.Wallet qualified as Wallet
 import Servant.API (NoContent (..), (:<|>) (..))
 import Servant.Server (Handler (..), ServerError, ServerT, err400, err500, errBody, hoistServer, serve)
@@ -25,7 +30,29 @@ import System.Environment (getArgs, lookupEnv)
 import System.Exit (die)
 import Text.Read (readMaybe)
 
-type AppM = ExceptT PrivyPublicKeyError (BlockfrostT IO)
+data AppError era
+    = AppBlockfrostError BlockfrostError
+    | AppPrivyPublicKeyError PrivyPublicKeyError
+    | AppSendFundsError SendFunds.SendFundsError
+    | AppCoinSelectionError CoinSelectionError
+    | AppBalancingError (BalancingError era)
+    deriving stock (Show)
+
+makePrisms ''AppError
+
+instance SendFunds.AsSendFundsError (AppError era) where
+    _SendFundsError = _AppSendFundsError
+
+instance AsPrivyPublicKeyError (AppError era) where
+    _PrivyPublicKeyError = _AppPrivyPublicKeyError
+
+instance AsCoinSelectionError (AppError era) where
+    _CoinSelectionError = _AppCoinSelectionError
+
+instance AsBalancingError (AppError era) era where
+    __BalancingError = _AppBalancingError
+
+type AppM = ExceptT (AppError C.ConwayEra) (BlockfrostT IO)
 
 corsPolicy :: CorsResourcePolicy
 corsPolicy =
@@ -54,8 +81,8 @@ runApp project action =
     Handler . ExceptT $ do
         result <- evalBlockfrostT project (runExceptT action)
         pure $ case result of
-            Left err -> Left (blockfrostErrorToServerError err)
-            Right (Left err) -> Left (privyPublicKeyErrorToServerError err)
+            Left err -> Left (appErrorToServerError (AppBlockfrostError err))
+            Right (Left err) -> Left (appErrorToServerError err)
             Right (Right value) -> Right value
 
 getPort :: IO Int
@@ -77,14 +104,25 @@ getBlockfrostProject = do
         Just project ->
             pure $ mkProject (Text.pack project)
 
-privyPublicKeyErrorToServerError :: PrivyPublicKeyError -> ServerError
-privyPublicKeyErrorToServerError err =
-    err400
-        { errBody = LBS8.pack (show err)
-        }
-
-blockfrostErrorToServerError :: BlockfrostError -> ServerError
-blockfrostErrorToServerError err =
-    err500
-        { errBody = LBS8.pack (show err)
-        }
+appErrorToServerError :: AppError C.ConwayEra -> ServerError
+appErrorToServerError = \case
+    AppBlockfrostError err ->
+        err500
+            { errBody = LBS8.pack (show err)
+            }
+    AppPrivyPublicKeyError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppSendFundsError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppCoinSelectionError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppBalancingError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }

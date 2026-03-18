@@ -52,10 +52,13 @@ library
     Privy.API
     Privy.API.PrivyPublicKey
     Privy.API.SerialiseAddress
+    Privy.API.Tx
     Privy.API.Wallet
     Privy.Cli
 
   other-modules:
+    Privy.API.SendFunds
+    Privy.API.TextEnvelope
     Privy.Orphans
     Privy.Utils.Serialise
 

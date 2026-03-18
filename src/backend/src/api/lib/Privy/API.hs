@@ -22,6 +22,6 @@ import Servant.API (
 
 type API era =
     "healthcheck" :> Description "Is the server alive?" :> Get '[JSON] NoContent
-        :<|> Wallet.API
+        :<|> Wallet.API era
 
 type APIInEra = "api" :> "v1" :> API C.ConwayEra

@@ -12,6 +12,7 @@ module Privy.API.Wallet (
 import Cardano.Api qualified as C
 import Control.Monad.Except (MonadError)
 import Convex.Class (MonadBlockchain, MonadUtxoQuery, utxosByPaymentCredential)
+import Convex.CoinSelection qualified as CoinSelection
 import Convex.Utxos (totalBalance)
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Aeson qualified as Aeson
@@ -21,9 +22,11 @@ import Data.OpenApi.SchemaOptions qualified as SchemaOptions
 import GHC.Generics (Generic)
 import GHC.IsList (toList)
 import Privy.API.PrivyPublicKey (AsPrivyPublicKeyError, PrivyPublicKey, toCardanoAddress, toPublicKeyHash)
+import Privy.API.SendFunds qualified as SendFunds
 import Privy.API.SerialiseAddress (SerialiseAddress (..))
+import Privy.API.Tx (ApiTx)
 import Privy.Orphans ()
-import Servant.API (Capture, Get, JSON, type (:>))
+import Servant.API (Capture, Get, JSON, QueryParams, (:<|>) (..), type (:>))
 import Servant.Server (ServerT)
 
 -- | State of the address
@@ -53,23 +56,65 @@ $(deriveTypeScript (Aeson.defaultOptions{Aeson.fieldLabelModifier = Aeson.camelT
 instance Schema.ToSchema WalletInfo where
     declareNamedSchema = Schema.genericDeclareNamedSchema (SchemaOptions.fromAesonOptions walletInfoOptions)
 
-type API = "wallet" :> Capture "public_key" PrivyPublicKey :> Get '[JSON] WalletInfo
+type API era =
+    "wallet"
+        :> Capture "public_key" PrivyPublicKey
+        :> ( "send_funds"
+                :> Capture "recipient" (SerialiseAddress (C.Address C.ShelleyAddr))
+                :> QueryParams "lovelace" Integer
+                :> Get '[JSON] (ApiTx era)
+                :<|> Get '[JSON] WalletInfo
+           )
 
 serve ::
-    forall era env err m.
+    forall era err m.
     ( MonadBlockchain era m
     , C.IsBabbageBasedEra era
     , MonadUtxoQuery m
     , MonadError err m
     , AsPrivyPublicKeyError err
+    , SendFunds.AsSendFundsError err
+    , CoinSelection.AsBalancingError err era
+    , CoinSelection.AsCoinSelectionError err
     ) =>
-    ServerT API m
-serve = getWalletInfo
+    ServerT (API era) m
+serve publicKey =
+    sendFunds publicKey
+        :<|> getWalletInfo publicKey
 
-getWalletInfo ::
-    forall era env err m.
+sendFunds ::
+    forall era err m.
     ( MonadBlockchain era m
     , C.IsBabbageBasedEra era
+    , MonadUtxoQuery m
+    , MonadError err m
+    , AsPrivyPublicKeyError err
+    , SendFunds.AsSendFundsError err
+    , CoinSelection.AsBalancingError err era
+    , CoinSelection.AsCoinSelectionError err
+    ) =>
+    PrivyPublicKey ->
+    SerialiseAddress (C.Address C.ShelleyAddr) ->
+    [Integer] ->
+    m (ApiTx era)
+sendFunds publicKey recipient lovelace = do
+    sender <- toCardanoAddress publicKey
+    SendFunds.sendFunds @era $
+        SendFunds.SendFundsRequest
+            { SendFunds.sfSenders = [SerialiseAddress sender]
+            , SendFunds.sfReceiver = recipient
+            , SendFunds.sfAssets = fmap mkAdaAsset lovelace
+            }
+  where
+    mkAdaAsset quantity =
+        SendFunds.AssetEntry
+            { SendFunds.aeAsset = C.AdaAssetId
+            , SendFunds.aeAmount = C.Quantity quantity
+            }
+
+getWalletInfo ::
+    forall era err m.
+    ( MonadBlockchain era m
     , MonadUtxoQuery m
     , MonadError err m
     , AsPrivyPublicKeyError err
