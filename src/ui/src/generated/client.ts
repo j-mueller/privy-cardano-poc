@@ -21,7 +21,7 @@ export function getApiV1WalletByPublicKey(public_key: string, fetchFn?: (input: 
   });
 }
 
-export function getApiV1WalletByPublicKeySendFundsByRecipient(public_key: string, recipient: string, lovelace?: number[], fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<ApiTxDummy> {
+export function getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient(public_key: string, recipient: string, lovelace?: number[], fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<ApiTxDummy> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,
     method: "GET",
@@ -29,7 +29,7 @@ export function getApiV1WalletByPublicKeySendFundsByRecipient(public_key: string
   };
   
   let params = {lovelace};
-  return (fetchFn || window.fetch)(`/api/v1/wallet/${public_key}/send_funds/${recipient}` + "?" + queryString.stringify(params), options).then((response) => {
+  return (fetchFn || window.fetch)(`/api/v1/wallet/${public_key}/build_tx/send_funds/${recipient}` + "?" + queryString.stringify(params), options).then((response) => {
     return new Promise((resolve, reject) => {
       if (response.status !== 200) {
         return response.text().then((text) => reject({text, status: response.status}));

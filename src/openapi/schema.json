@@ -129,7 +129,7 @@
                 }
             }
         },
-        "/api/v1/wallet/{public_key}/send_funds/{recipient}": {
+        "/api/v1/wallet/{public_key}/build_tx/send_funds/{recipient}": {
             "get": {
                 "parameters": [
                     {

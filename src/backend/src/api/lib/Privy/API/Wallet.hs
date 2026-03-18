@@ -59,7 +59,8 @@ instance Schema.ToSchema WalletInfo where
 type API era =
     "wallet"
         :> Capture "public_key" PrivyPublicKey
-        :> ( "send_funds"
+        :> ( "build_tx"
+                :> "send_funds"
                 :> Capture "recipient" (SerialiseAddress (C.Address C.ShelleyAddr))
                 :> QueryParams "lovelace" Integer
                 :> Get '[JSON] (ApiTx era)

@@ -9,6 +9,7 @@ module Privy.API (
 ) where
 
 import Cardano.Api qualified as C
+import Privy.API.Tx qualified as Tx
 import Privy.API.Wallet qualified as Wallet
 import Privy.Orphans ()
 import Servant.API (
@@ -23,5 +24,6 @@ import Servant.API (
 type API era =
     "healthcheck" :> Description "Is the server alive?" :> Get '[JSON] NoContent
         :<|> Wallet.API era
+        :<|> Tx.API era
 
 type APIInEra = "api" :> "v1" :> API C.ConwayEra

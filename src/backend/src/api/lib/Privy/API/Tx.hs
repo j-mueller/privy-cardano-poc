@@ -12,6 +12,8 @@ module Privy.API.Tx (
     txApiTypeScriptExtraTypes,
     apiTx,
     submitTx,
+    API,
+    serve,
 ) where
 
 import Cardano.Api qualified as C
@@ -21,13 +23,22 @@ import Cardano.Ledger.Core qualified as LedgerCore
 import Cardano.Ledger.Hashes qualified as LedgerHashes
 import Cardano.Ledger.Keys qualified as LedgerKeys
 import Cardano.Ledger.Keys.WitVKey qualified as LedgerWit
-import Control.Lens (makeClassyPrisms, review, (&), (?~))
+import Control.Lens (
+    makeClassyPrisms,
+    review,
+    (&),
+    (?~),
+ )
 import Control.Monad.Except (MonadError, liftEither)
 import Convex.Class (MonadBlockchain)
 import Convex.Class qualified as Chain
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.TypeScript.TH (TSType (..), TypeScript (..), deriveTypeScript)
+import Data.Aeson.TypeScript.TH (
+    TSType (..),
+    TypeScript (..),
+    deriveTypeScript,
+ )
 import Data.Bifunctor (first)
 import Data.ByteString.Base16 qualified as Base16
 import Data.OpenApi (NamedSchema (..))
@@ -40,8 +51,17 @@ import Data.Text (Text)
 import Data.Text.Encoding qualified as Enc
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Privy.API.PrivyPublicKey (AsPrivyPublicKeyError, PrivyPublicKey, toPublicKey)
-import Privy.API.TextEnvelope (TextEnvelopeJSON (..), TextEnvelopeJsonDummy)
+import Privy.API.PrivyPublicKey (
+    AsPrivyPublicKeyError,
+    PrivyPublicKey,
+    toPublicKey,
+ )
+import Privy.API.TextEnvelope (
+    TextEnvelopeJSON (..),
+    TextEnvelopeJsonDummy,
+ )
+import Servant.API (JSON, Post, ReqBody, type (:>))
+import Servant.Server (ServerT)
 
 newtype TxBodyHash = TxBodyHash (ApiLedger.SafeHash LedgerCore.EraIndependentTxBody)
     deriving stock (Eq, Show)
@@ -241,6 +261,20 @@ mkKeyWitness paymentVerificationKey (PrivySignature signatureText) = do
         C.ShelleyKeyWitness
             C.shelleyBasedEra
             (LedgerWit.WitVKey (LedgerKeys.VKey verificationKey) (Crypto.SignedDSIGN signature))
+
+type API era = "submit_tx" :> ReqBody '[JSON] (SubmitTxArgs era) :> Post '[JSON] C.TxId
+
+serve ::
+    forall era err m.
+    ( MonadBlockchain era m
+    , C.IsShelleyBasedEra era
+    , MonadError err m
+    , AsPrivyPublicKeyError err
+    , AsSubmitTxError err
+    , Chain.AsSendTxError err era
+    ) =>
+    ServerT (API era) m
+serve = submitTx
 
 submitTx ::
     forall era err m.

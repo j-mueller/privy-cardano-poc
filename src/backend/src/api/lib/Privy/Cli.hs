@@ -14,18 +14,42 @@ import Cardano.Api qualified as C
 import Control.Lens (makePrisms)
 import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import Convex.Blockfrost (BlockfrostT, evalBlockfrostT)
-import Convex.CoinSelection (AsBalancingError (..), AsCoinSelectionError (..), BalancingError, CoinSelectionError)
+import Convex.Class qualified as Chain
+import Convex.CoinSelection (
+    AsBalancingError (..),
+    AsCoinSelectionError (..),
+    BalancingError,
+    CoinSelectionError,
+ )
 import Data.ByteString.Lazy.Char8 qualified as LBS8
 import Data.Proxy (Proxy (..))
 import Data.Text qualified as Text
 import Network.Wai.Handler.Warp qualified as Warp
-import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, simpleCorsResourcePolicy)
+import Network.Wai.Middleware.Cors (
+    CorsResourcePolicy (..),
+    cors,
+    simpleCorsResourcePolicy,
+ )
 import Privy.API (APIInEra)
-import Privy.API.PrivyPublicKey (AsPrivyPublicKeyError (..), PrivyPublicKeyError)
+import Privy.API.PrivyPublicKey (
+    AsPrivyPublicKeyError (..),
+    PrivyPublicKeyError,
+ )
 import Privy.API.SendFunds qualified as SendFunds
+import Privy.API.Tx (AsSubmitTxError (..), SubmitTxError)
+import Privy.API.Tx qualified as Tx
 import Privy.API.Wallet qualified as Wallet
 import Servant.API (NoContent (..), (:<|>) (..))
-import Servant.Server (Handler (..), ServerError, ServerT, err400, err500, errBody, hoistServer, serve)
+import Servant.Server (
+    Handler (..),
+    ServerError,
+    ServerT,
+    err400,
+    err500,
+    errBody,
+    hoistServer,
+    serve,
+ )
 import System.Environment (getArgs, lookupEnv)
 import System.Exit (die)
 import Text.Read (readMaybe)
@@ -36,6 +60,8 @@ data AppError era
     | AppSendFundsError SendFunds.SendFundsError
     | AppCoinSelectionError CoinSelectionError
     | AppBalancingError (BalancingError era)
+    | AppSubmitTxError SubmitTxError
+    | AppSendTxError (Chain.SendTxError era)
     deriving stock (Show)
 
 makePrisms ''AppError
@@ -51,6 +77,12 @@ instance AsCoinSelectionError (AppError era) where
 
 instance AsBalancingError (AppError era) era where
     __BalancingError = _AppBalancingError
+
+instance AsSubmitTxError (AppError era) where
+    _SubmitTxError = _AppSubmitTxError
+
+instance Chain.AsSendTxError (AppError era) era where
+    _SendTxError = _AppSendTxError
 
 type AppM = ExceptT (AppError C.ConwayEra) (BlockfrostT IO)
 
@@ -75,6 +107,7 @@ server :: ServerT APIInEra AppM
 server =
     pure NoContent
         :<|> Wallet.serve @C.ConwayEra
+        :<|> Tx.serve @C.ConwayEra
 
 runApp :: Project -> AppM a -> Handler a
 runApp project action =
@@ -123,6 +156,14 @@ appErrorToServerError = \case
             { errBody = LBS8.pack (show err)
             }
     AppBalancingError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppSubmitTxError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppSendTxError err ->
         err400
             { errBody = LBS8.pack (show err)
             }

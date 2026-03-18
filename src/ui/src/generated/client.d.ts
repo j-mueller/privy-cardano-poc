@@ -12,6 +12,20 @@ interface IApiTxDummy {
   tx_body_hash: string;
 }
 
+type KeyWitness = IKeyWitness;
+
+interface IKeyWitness {
+  public_key: string;
+  signature: string;
+}
+
+type SubmitTxArgsDummy = ISubmitTxArgsDummy;
+
+interface ISubmitTxArgsDummy {
+  transaction: TextEnvelopeJsonDummy;
+  witnesses: KeyWitness[];
+}
+
 type TextEnvelopeJsonDummy = ITextEnvelopeJsonDummy;
 
 interface ITextEnvelopeJsonDummy {

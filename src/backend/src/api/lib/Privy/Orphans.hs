@@ -55,6 +55,17 @@ instance ToSchema C.Quantity where
                 mempty
                     & L.type_ ?~ OpenApiInteger
 
+instance TypeScript C.TxId where
+    getTypeScriptType _ = "string"
+
+instance ToSchema C.TxId where
+    declareNamedSchema _ =
+        pure $
+            NamedSchema (Just "TxId") $
+                mempty
+                    & L.type_ ?~ OpenApiString
+                    & L.description ?~ "Hex-encoded Cardano transaction ID"
+
 assetIdToText :: C.AssetId -> T.Text
 assetIdToText = \case
     C.AdaAssetId -> "lovelace"
