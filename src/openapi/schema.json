@@ -1,0 +1,61 @@
+{
+    "components": {
+        "schemas": {
+            "Address": {
+                "description": "bech32-encoded cardano address",
+                "example": "addr_test1qpju2uhn72ur6j5alln6nz7dqcgcjal7xjaw7lwdjdaex4qhr3xpz63fjwvlpsnu8efnhfdja78d3vkv8ks6ac09g3usemu2yl",
+                "type": "string"
+            }
+        }
+    },
+    "info": {
+        "title": "",
+        "version": ""
+    },
+    "openapi": "3.0.0",
+    "paths": {
+        "/api/v1/healthcheck": {
+            "get": {
+                "description": "Is the server alive?",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {}
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/wallet/{public_key}": {
+            "get": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "public_key",
+                        "required": true,
+                        "schema": {
+                            "description": "Privy wallet public key",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Address"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "description": "`public_key` not found"
+                    }
+                }
+            }
+        }
+    }
+}

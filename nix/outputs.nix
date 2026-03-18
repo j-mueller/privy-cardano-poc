@@ -26,6 +26,17 @@ let
 
   projectFlake = project.flake {};
 
+  apps = projectFlake.apps // {
+    export-typescript-api = {
+      type = "app";
+      program = lib.getExe projectFlake.packages."privy-cardano-api:exe:export-typescript-api";
+    };
+    export-openapi-schema = {
+      type = "app";
+      program = lib.getExe projectFlake.packages."privy-cardano-api:exe:export-openapi-schema";
+    };
+  };
+
   defaultHydraJobs = { 
     ghc966 = projectFlake.hydraJobs.ghc966;
     # ghc984 = projectFlake.hydraJobs.ghc984;
@@ -44,12 +55,13 @@ let
   };
 
   hydraJobs = utils.flattenDerivationTree "-" hydraJobsPerSystem.${system};
+
 in
 
 {
   inherit devShells;
   inherit hydraJobs;
-  inherit (projectFlake) apps;
+  inherit apps;
   inherit (projectFlake) packages;
   # Explore the project via nix repl '.#'
   project = project;
