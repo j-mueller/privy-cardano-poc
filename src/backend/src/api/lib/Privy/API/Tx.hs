@@ -4,18 +4,31 @@
 module Privy.API.Tx (
     ApiTx,
     ApiTxDummy,
+    PrivySignature (..),
+    KeyWitness (..),
+    SubmitTxArgs (..),
+    SubmitTxError (..),
+    AsSubmitTxError (..),
     txApiTypeScriptExtraTypes,
     apiTx,
+    submitTx,
 ) where
 
 import Cardano.Api qualified as C
 import Cardano.Api.Ledger qualified as ApiLedger
+import Cardano.Crypto.DSIGN.Class qualified as Crypto
 import Cardano.Ledger.Core qualified as LedgerCore
 import Cardano.Ledger.Hashes qualified as LedgerHashes
-import Control.Lens ((&), (?~))
+import Cardano.Ledger.Keys qualified as LedgerKeys
+import Cardano.Ledger.Keys.WitVKey qualified as LedgerWit
+import Control.Lens (makeClassyPrisms, review, (&), (?~))
+import Control.Monad.Except (MonadError, liftEither)
+import Convex.Class (MonadBlockchain)
+import Convex.Class qualified as Chain
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.TypeScript.TH (TSType (..), TypeScript (..), deriveTypeScript)
+import Data.Bifunctor (first)
 import Data.ByteString.Base16 qualified as Base16
 import Data.OpenApi (NamedSchema (..))
 import Data.OpenApi.Internal (OpenApiType (OpenApiString))
@@ -27,6 +40,7 @@ import Data.Text (Text)
 import Data.Text.Encoding qualified as Enc
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
+import Privy.API.PrivyPublicKey (AsPrivyPublicKeyError, PrivyPublicKey, toPublicKey)
 import Privy.API.TextEnvelope (TextEnvelopeJSON (..), TextEnvelopeJsonDummy)
 
 newtype TxBodyHash = TxBodyHash (ApiLedger.SafeHash LedgerCore.EraIndependentTxBody)
@@ -91,12 +105,6 @@ instance (C.IsShelleyBasedEra era) => FromJSON (ApiTx era) where
 
 $(deriveTypeScript (Aeson.defaultOptions{Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 3}) ''ApiTxDummy)
 
-txApiTypeScriptExtraTypes :: [TSType]
-txApiTypeScriptExtraTypes =
-    [ TSType (Proxy @ApiTxDummy)
-    , TSType (Proxy @TextEnvelopeJsonDummy)
-    ]
-
 instance (Typeable era) => TypeScript (ApiTx era) where
     getTypeScriptType _ = getTypeScriptType (Proxy @ApiTxDummy)
 
@@ -114,3 +122,147 @@ apiTx tx =
                         C.shelleyBasedEraConstraints sbe $
                             LedgerHashes.hashAnnotated ledgerTxBody
         }
+
+newtype PrivySignature = PrivySignature Text
+    deriving stock (Eq, Show)
+
+instance ToJSON PrivySignature where
+    toJSON (PrivySignature signature) = Aeson.String signature
+
+instance FromJSON PrivySignature where
+    parseJSON =
+        Aeson.withText "PrivySignature" $
+            pure . PrivySignature
+
+instance TypeScript PrivySignature where
+    getTypeScriptType _ = "string"
+
+instance Schema.ToSchema PrivySignature where
+    declareNamedSchema _ =
+        pure $
+            NamedSchema (Just "PrivySignature") $
+                mempty
+                    & L.type_ ?~ OpenApiString
+                    & L.description ?~ "Hex-encoded Ed25519 signature returned by Privy raw_sign"
+
+data KeyWitness
+    = KeyWitness
+    { kwPublicKey :: PrivyPublicKey
+    , kwSignature :: PrivySignature
+    }
+    deriving stock (Eq, Show, Generic)
+
+keyWitnessOptions :: Aeson.Options
+keyWitnessOptions =
+    Aeson.defaultOptions
+        { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
+        }
+
+instance ToJSON KeyWitness where
+    toJSON = Aeson.genericToJSON keyWitnessOptions
+    toEncoding = Aeson.genericToEncoding keyWitnessOptions
+
+instance FromJSON KeyWitness where
+    parseJSON = Aeson.genericParseJSON keyWitnessOptions
+
+$(deriveTypeScript (Aeson.defaultOptions{Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2}) ''KeyWitness)
+
+instance Schema.ToSchema KeyWitness where
+    declareNamedSchema = Schema.genericDeclareNamedSchema (SchemaOptions.fromAesonOptions keyWitnessOptions)
+
+data SubmitTxArgsDummy
+    = SubmitTxArgsDummy
+    { stadTransaction :: TextEnvelopeJsonDummy
+    , stadWitnesses :: [KeyWitness]
+    }
+    deriving stock (Generic)
+
+$(deriveTypeScript (Aeson.defaultOptions{Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 4}) ''SubmitTxArgsDummy)
+
+data SubmitTxArgs era
+    = SubmitTxArgs
+    { staTransaction :: TextEnvelopeJSON (C.Tx era)
+    , staWitnesses :: [KeyWitness]
+    }
+    deriving stock (Eq, Show, Generic)
+
+submitTxArgsOptions :: Aeson.Options
+submitTxArgsOptions =
+    Aeson.defaultOptions
+        { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 3
+        }
+
+instance (C.IsShelleyBasedEra era) => ToJSON (SubmitTxArgs era) where
+    toJSON = Aeson.genericToJSON submitTxArgsOptions
+    toEncoding = Aeson.genericToEncoding submitTxArgsOptions
+
+instance (C.IsShelleyBasedEra era) => FromJSON (SubmitTxArgs era) where
+    parseJSON = Aeson.genericParseJSON submitTxArgsOptions
+
+instance (Typeable era) => TypeScript (SubmitTxArgs era) where
+    getTypeScriptType _ = getTypeScriptType (Proxy @SubmitTxArgsDummy)
+
+instance (C.IsShelleyBasedEra era) => Schema.ToSchema (SubmitTxArgs era) where
+    declareNamedSchema = Schema.genericDeclareNamedSchema (SchemaOptions.fromAesonOptions submitTxArgsOptions)
+
+data SubmitTxError
+    = SubmitTxWitnessDeserialisationFailed String
+    deriving stock (Show)
+
+makeClassyPrisms ''SubmitTxError
+
+txApiTypeScriptExtraTypes :: [TSType]
+txApiTypeScriptExtraTypes =
+    [ TSType (Proxy @ApiTxDummy)
+    , TSType (Proxy @KeyWitness)
+    , TSType (Proxy @SubmitTxArgsDummy)
+    , TSType (Proxy @TextEnvelopeJsonDummy)
+    ]
+
+mkKeyWitness ::
+    forall era.
+    (C.IsShelleyBasedEra era) =>
+    C.VerificationKey C.PaymentKey ->
+    PrivySignature ->
+    Either String (C.KeyWitness era)
+mkKeyWitness paymentVerificationKey (PrivySignature signatureText) = do
+    rawSignature <- Base16.decode (Enc.encodeUtf8 signatureText)
+    signature <-
+        maybe
+            (Left "Failed to deserialise Privy signature")
+            Right
+            (Crypto.rawDeserialiseSigDSIGN rawSignature)
+    verificationKey <-
+        maybe
+            (Left "Failed to deserialise Cardano verification key")
+            Right
+            (Crypto.rawDeserialiseVerKeyDSIGN (C.serialiseToRawBytes paymentVerificationKey))
+    pure $
+        C.ShelleyKeyWitness
+            C.shelleyBasedEra
+            (LedgerWit.WitVKey (LedgerKeys.VKey verificationKey) (Crypto.SignedDSIGN signature))
+
+submitTx ::
+    forall era err m.
+    ( MonadBlockchain era m
+    , C.IsShelleyBasedEra era
+    , MonadError err m
+    , AsPrivyPublicKeyError err
+    , AsSubmitTxError err
+    , Chain.AsSendTxError err era
+    ) =>
+    SubmitTxArgs era ->
+    m C.TxId
+submitTx SubmitTxArgs{staTransaction = TextEnvelopeJSON (C.Tx txBody existingWitnesses), staWitnesses} = do
+    witnesses <-
+        traverse
+            ( \KeyWitness{kwPublicKey, kwSignature} -> do
+                paymentVerificationKey <- toPublicKey kwPublicKey
+                liftEither $
+                    first (review _SubmitTxWitnessDeserialisationFailed) $
+                        mkKeyWitness @era paymentVerificationKey kwSignature
+            )
+            staWitnesses
+    Chain.sendTx
+        (C.makeSignedTransaction (existingWitnesses <> witnesses) txBody)
+        >>= liftEither . first (review Chain._SendTxError)

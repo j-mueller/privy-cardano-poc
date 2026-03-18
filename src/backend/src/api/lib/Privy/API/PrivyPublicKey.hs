@@ -16,6 +16,8 @@ import Control.Lens (makeClassyPrisms, (&), (?~))
 import Control.Lens qualified as L
 import Control.Monad.Except (MonadError (..), liftEither)
 import Convex.Class (MonadBlockchain (queryNetworkId))
+import Data.Aeson (FromJSON (..), ToJSON (..))
+import Data.Aeson qualified as Aeson
 import Data.Aeson.TypeScript.TH (TypeScript (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.OpenApi.Internal (
@@ -36,6 +38,14 @@ import Servant.API (
 
 newtype PrivyPublicKey = PrivyPublicKey Text
     deriving stock (Eq, Show)
+
+instance ToJSON PrivyPublicKey where
+    toJSON (PrivyPublicKey publicKey) = Aeson.String publicKey
+
+instance FromJSON PrivyPublicKey where
+    parseJSON =
+        Aeson.withText "PrivyPublicKey" $
+            pure . PrivyPublicKey
 
 instance TypeScript PrivyPublicKey where
     getTypeScriptType _ = "string"

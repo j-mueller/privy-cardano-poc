@@ -80,6 +80,7 @@ library
     , bytestring
     , cardano-api
     , cardano-api-gen
+    , cardano-crypto-class
     , cardano-ledger-core
     , case-insensitive
     , clock
