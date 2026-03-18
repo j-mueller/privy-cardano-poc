@@ -9,11 +9,9 @@ module Privy.API (
 ) where
 
 import Cardano.Api qualified as C
-import Privy.API.PrivyPublicKey (PrivyPublicKey)
-import Privy.API.SerialiseAddress (SerialiseAddress)
+import Privy.API.Wallet qualified as Wallet
 import Privy.Orphans ()
 import Servant.API (
-    Capture,
     Description,
     Get,
     JSON,
@@ -24,6 +22,6 @@ import Servant.API (
 
 type API era =
     "healthcheck" :> Description "Is the server alive?" :> Get '[JSON] NoContent
-        :<|> "wallet" :> Capture "public_key" PrivyPublicKey :> Get '[JSON] (SerialiseAddress (C.Address C.ShelleyAddr))
+        :<|> Wallet.API
 
 type APIInEra = "api" :> "v1" :> API C.ConwayEra

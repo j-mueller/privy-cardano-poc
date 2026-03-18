@@ -52,6 +52,7 @@ library
     Privy.API
     Privy.API.PrivyPublicKey
     Privy.API.SerialiseAddress
+    Privy.API.Wallet
 
   other-modules:
     Privy.Orphans
