@@ -6,24 +6,25 @@
 module Privy.API.Wallet (
     API,
     WalletInfo (..),
+    serve,
 ) where
 
 import Cardano.Api qualified as C
+import Control.Monad.Except (MonadError)
+import Convex.Class (MonadBlockchain, MonadUtxoQuery, utxosByPaymentCredential)
+import Convex.Utxos (totalBalance)
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.TypeScript.TH (deriveTypeScript)
 import Data.OpenApi.Schema qualified as Schema
 import Data.OpenApi.SchemaOptions qualified as SchemaOptions
 import GHC.Generics (Generic)
-import Privy.API.PrivyPublicKey (PrivyPublicKey)
-import Privy.API.SerialiseAddress (SerialiseAddress)
+import GHC.IsList (toList)
+import Privy.API.PrivyPublicKey (AsPrivyPublicKeyError, PrivyPublicKey, toCardanoAddress, toPublicKeyHash)
+import Privy.API.SerialiseAddress (SerialiseAddress (..))
 import Privy.Orphans ()
-import Servant.API (
-    Capture,
-    Get,
-    JSON,
-    type (:>),
- )
+import Servant.API (Capture, Get, JSON, type (:>))
+import Servant.Server (ServerT)
 
 -- | State of the address
 data WalletInfo
@@ -53,3 +54,37 @@ instance Schema.ToSchema WalletInfo where
     declareNamedSchema = Schema.genericDeclareNamedSchema (SchemaOptions.fromAesonOptions walletInfoOptions)
 
 type API = "wallet" :> Capture "public_key" PrivyPublicKey :> Get '[JSON] WalletInfo
+
+serve ::
+    forall era env err m.
+    ( MonadBlockchain era m
+    , C.IsBabbageBasedEra era
+    , MonadUtxoQuery m
+    , MonadError err m
+    , AsPrivyPublicKeyError err
+    ) =>
+    ServerT API m
+serve = getWalletInfo
+
+getWalletInfo ::
+    forall era env err m.
+    ( MonadBlockchain era m
+    , C.IsBabbageBasedEra era
+    , MonadUtxoQuery m
+    , MonadError err m
+    , AsPrivyPublicKeyError err
+    ) =>
+    PrivyPublicKey ->
+    m WalletInfo
+getWalletInfo publicKey = do
+    pkh <- toPublicKeyHash publicKey
+    address <- toCardanoAddress publicKey
+    let paymentCredential = C.PaymentCredentialByKey pkh
+    balance <-
+        toList . totalBalance
+            <$> utxosByPaymentCredential paymentCredential
+    pure
+        WalletInfo
+            { wiAddress = SerialiseAddress address
+            , wiBalance = balance
+            }
