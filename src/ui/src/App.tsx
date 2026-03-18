@@ -36,7 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   getApiV1WalletByPublicKey,
-  getApiV1WalletByPublicKeySendFundsByRecipient,
+  getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient,
 } from "@/generated/client";
 
 type EligibleWallet = {
@@ -51,7 +51,7 @@ type RawSignResponse = {
   error?: string;
 };
 
-type RequestPhase = "idle" | "generating" | "signing";
+type RequestPhase = "idle" | "generating" | "signing" | "submitting";
 
 const cardanoServerUrl = import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL?.replace(
   /\/$/,
@@ -130,21 +130,6 @@ function normalizeHexPayload(value: string): string {
   }
 
   return normalized.toLowerCase();
-}
-
-function hexToBase64(value: string): string {
-  const normalized = normalizeHexPayload(value);
-  const bytes = normalized.match(/.{1,2}/g);
-
-  if (!bytes) {
-    throw new Error("Payload hex cannot be empty.");
-  }
-
-  return btoa(
-    bytes
-      .map((byte) => String.fromCharCode(Number.parseInt(byte, 16)))
-      .join("")
-  );
 }
 
 function normalizePublicKeyToHex(publicKey: string | undefined): string {
@@ -230,6 +215,7 @@ function App() {
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [error, setError] = useState("");
   const [requestPhase, setRequestPhase] = useState<RequestPhase>("idle");
+  const [submittedTxId, setSubmittedTxId] = useState("");
   const [isProvisioningWallet, setIsProvisioningWallet] = useState(false);
   const [hasCopiedPublicKey, setHasCopiedPublicKey] = useState(false);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
@@ -337,6 +323,7 @@ function App() {
     setError("");
     setSignature("");
     setGeneratedTransaction(null);
+    setSubmittedTxId("");
 
     if (!selectedWalletId) {
       setError("No delegated embedded wallet is available for raw_sign.");
@@ -371,7 +358,7 @@ function App() {
     setRequestPhase("generating");
 
     try {
-      const apiTx = await getApiV1WalletByPublicKeySendFundsByRecipient(
+      const apiTx = await getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient(
         selectedWalletPublicKeyHash,
         receiverAddress.trim(),
         [parsedAmount],
@@ -381,16 +368,13 @@ function App() {
       setGeneratedTransaction(apiTx);
       setRequestPhase("signing");
 
-      const payloadBase64 = hexToBase64(apiTx.tx_body_hash);
       const authorizationSignature = await generateAuthorizationSignature({
         version: 1,
         method: "POST",
         url: `https://api.privy.io/v1/wallets/${selectedWalletId}/raw_sign`,
         body: {
           params: {
-            bytes: payloadBase64,
-            encoding: "base64",
-            hash_function: "blake2b256",
+            hash: `0x${normalizeHexPayload(apiTx.tx_body_hash)}`,
           },
         },
         headers: {
@@ -422,6 +406,67 @@ function App() {
         getRequestErrorMessage(
           requestError,
           "Failed to generate and sign the transaction."
+        )
+      );
+    } finally {
+      setRequestPhase("idle");
+    }
+  };
+
+  const handleSubmitTransaction = async () => {
+    setError("");
+    setSubmittedTxId("");
+
+    if (!generatedTransaction) {
+      setError("Generate a transaction before submitting it.");
+      return;
+    }
+
+    if (!signature) {
+      setError("Sign the transaction hash before submitting the transaction.");
+      return;
+    }
+
+    if (!selectedWalletPublicKeyHash) {
+      setError("The selected wallet is missing a Cardano public key.");
+      return;
+    }
+
+    setRequestPhase("submitting");
+
+    try {
+      const response = await cardanoApiFetch("/api/v1/submit_tx", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transaction: generatedTransaction.transaction,
+          witnesses: [
+            {
+              public_key: selectedWalletPublicKeyHash,
+              signature: normalizeHexPayload(signature),
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const txId = ((await response.json()) as string).trim();
+
+      if (!txId) {
+        throw new Error("submit_tx returned an empty transaction ID.");
+      }
+
+      setSubmittedTxId(txId);
+    } catch (requestError) {
+      setError(
+        getRequestErrorMessage(
+          requestError,
+          "Failed to submit the signed transaction."
         )
       );
     } finally {
@@ -781,6 +826,8 @@ function App() {
                     ? "Generating transaction..."
                     : requestPhase === "signing"
                       ? "Signing transaction hash..."
+                      : requestPhase === "submitting"
+                        ? "Submitting transaction..."
                       : "Generate transaction"}
                 </Button>
                 {error ? (
@@ -843,6 +890,45 @@ function App() {
                 readOnly
                 spellCheck={false}
               />
+              <label
+                htmlFor="submitted-tx-id"
+                className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                Submitted transaction ID
+              </label>
+              <Textarea
+                id="submitted-tx-id"
+                className="min-h-24 bg-[#fbfaf7] font-mono"
+                placeholder="The submitted transaction ID will appear here."
+                value={submittedTxId}
+                readOnly
+                spellCheck={false}
+              />
+              {submittedTxId ? (
+                <a
+                  href={`https://preprod.cexplorer.io/tx/${submittedTxId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm underline underline-offset-4"
+                >
+                  View submitted transaction on CExplorer
+                </a>
+              ) : null}
+              <Button
+                size="lg"
+                disabled={
+                  isSubmittingRequest ||
+                  !generatedTransaction ||
+                  !signature ||
+                  !selectedWalletPublicKeyHash
+                }
+                onClick={handleSubmitTransaction}
+              >
+                {requestPhase === "submitting" ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : null}
+                Submit transaction
+              </Button>
             </CardContent>
           </Card>
         </div>

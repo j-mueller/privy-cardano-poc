@@ -125,10 +125,8 @@ export function createRawSignMiddleware() {
         return;
       }
 
-      const hexPayload = payloadHex ?? transactionHex;
-
-      if (!hexPayload) {
-        sendJson(response, 400, { error: "Missing payload hex." });
+      if (!payloadHex && !transactionHex) {
+        sendJson(response, 400, { error: "Missing payload hex or transaction hex." });
         return;
       }
 
@@ -142,16 +140,27 @@ export function createRawSignMiddleware() {
         return;
       }
 
-      const normalizedHex = normalizeHex(hexPayload);
       const privy = getPrivyClient();
-      const rawSignResult = await privy.wallets()._rawSign(walletId, {
-        "privy-authorization-signature": authorizationSignature,
-        params: {
-          bytes: Buffer.from(normalizedHex, "hex").toString("base64"),
-          encoding: "base64",
-          hash_function: hashFunction,
-        },
-      });
+      const rawSignResult = await privy.wallets()._rawSign(
+        walletId,
+        payloadHex
+          ? {
+              "privy-authorization-signature": authorizationSignature,
+              params: {
+                hash: `0x${normalizeHex(payloadHex)}`,
+              },
+            }
+          : {
+              "privy-authorization-signature": authorizationSignature,
+              params: {
+                bytes: Buffer.from(normalizeHex(transactionHex!), "hex").toString(
+                  "base64"
+                ),
+                encoding: "base64",
+                hash_function: hashFunction,
+              },
+            }
+      );
 
       sendJson(response, 200, {
         signature: rawSignResult.data.signature,
