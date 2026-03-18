@@ -5,6 +5,41 @@
                 "description": "bech32-encoded cardano address",
                 "example": "addr_test1qpju2uhn72ur6j5alln6nz7dqcgcjal7xjaw7lwdjdaex4qhr3xpz63fjwvlpsnu8efnhfdja78d3vkv8ks6ac09g3usemu2yl",
                 "type": "string"
+            },
+            "AssetId": {
+                "description": "Cardano asset ID, either 'lovelace' or POLICY_ID.TOKEN_NAME",
+                "type": "string"
+            },
+            "Quantity": {
+                "type": "integer"
+            },
+            "WalletInfo": {
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/Address"
+                    },
+                    "balance": {
+                        "items": {
+                            "items": [
+                                {
+                                    "$ref": "#/components/schemas/AssetId"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/Quantity"
+                                }
+                            ],
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "type": "array"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "address",
+                    "balance"
+                ],
+                "type": "object"
             }
         }
     },
@@ -45,7 +80,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Address"
+                                    "$ref": "#/components/schemas/WalletInfo"
                                 }
                             }
                         },

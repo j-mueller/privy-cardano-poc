@@ -2,7 +2,7 @@
  import queryString from "query-string";
 
 
-export function getApiV1WalletByPublicKey(public_key: string, fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<string> {
+export function getApiV1WalletByPublicKey(public_key: string, fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<WalletInfo> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,
     method: "GET",

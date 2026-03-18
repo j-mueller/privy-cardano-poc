@@ -27,9 +27,8 @@ jobs:
 
       - name: Check generated files
         run: |
-          nix run .#export-typescript-api src/ui/src/generated
+          ./update-generated-files.sh
           git diff --exit-code src/ui/src/generated
-          nix run .#export-openapi-schema src/openapi/schema.json
           git diff --exit-code src/openapi
 
       - name: Build in nix shell
