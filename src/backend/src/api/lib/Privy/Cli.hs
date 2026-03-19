@@ -35,6 +35,11 @@ import Privy.API.PrivyPublicKey (
     AsPrivyPublicKeyError (..),
     PrivyPublicKeyError,
  )
+import Privy.API.RawSign (
+    AsRawSignError (..),
+    RawSignError,
+ )
+import Privy.API.RawSign qualified as RawSign
 import Privy.API.SendFunds qualified as SendFunds
 import Privy.API.Tx (AsSubmitTxError (..), SubmitTxError)
 import Privy.API.Tx qualified as Tx
@@ -57,6 +62,7 @@ import Text.Read (readMaybe)
 data AppError era
     = AppBlockfrostError BlockfrostError
     | AppPrivyPublicKeyError PrivyPublicKeyError
+    | AppRawSignError RawSignError
     | AppSendFundsError SendFunds.SendFundsError
     | AppCoinSelectionError CoinSelectionError
     | AppBalancingError (BalancingError era)
@@ -71,6 +77,9 @@ instance SendFunds.AsSendFundsError (AppError era) where
 
 instance AsPrivyPublicKeyError (AppError era) where
     _PrivyPublicKeyError = _AppPrivyPublicKeyError
+
+instance AsRawSignError (AppError era) where
+    _RawSignError = _AppRawSignError
 
 instance AsCoinSelectionError (AppError era) where
     _CoinSelectionError = _AppCoinSelectionError
@@ -106,6 +115,7 @@ main = do
 server :: ServerT APIInEra AppM
 server =
     pure NoContent
+        :<|> RawSign.serve
         :<|> Wallet.serve @C.ConwayEra
         :<|> Tx.serve @C.ConwayEra
 
@@ -144,6 +154,10 @@ appErrorToServerError = \case
             { errBody = LBS8.pack (show err)
             }
     AppPrivyPublicKeyError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppRawSignError err ->
         err400
             { errBody = LBS8.pack (show err)
             }

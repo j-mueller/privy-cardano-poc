@@ -5,22 +5,21 @@ With this integration you can send funds on Cardano using privy's authentication
 
 ## Project Structure
 
-* The main app is in `src/ui`. It's a vite/react web app that uses Privy SDK for authentication. You can look at your Cardano balance and send and receive funds.
-* There is a Haskell backend for transaction building in `src/backend`. It's a stateless HTTP server with an OpenAPI interface documented [here](src/openapi/schema.json).
+* The main app is in `src/ui`. It's a React web app (built with Vite) that uses Privy SDK for authentication. You can look at your Cardano balance and send and receive funds.
+* There is a Haskell backend in `src/backend`. It's a stateless HTTP server with an OpenAPI interface documented [here](src/openapi/schema.json).
+  It handles transaction building/submission and proxies `raw_sign` requests to Privy using backend-held app credentials.
 
 ```mermaid
 flowchart LR
   webapp[Web App]
-  vite_backend[Vite Dev Server]
   haskell_backend[Haskell Backend]
   privy[Privy]
   blockfrost[Blockfrost]
   cardano_network[Cardano Network]
 
-  webapp -- wallet info / build tx / submit tx --> haskell_backend
+  webapp -- wallet info / build tx / raw_sign / submit tx --> haskell_backend
   webapp -- auth / wallet provisioning --> privy
-  webapp -- /api/raw-sign --> vite_backend
-  vite_backend -- wallets._rawSign --> privy
+  haskell_backend -- wallets._rawSign --> privy
   haskell_backend -- query chain data / submit tx --> blockfrost
   blockfrost --> cardano_network
 
@@ -31,12 +30,13 @@ flowchart LR
 Privy is used for:
 * Managing the private key in its TEE
 * Exporting the public key
-* Signing transaction body hashes with the private key using Ed25119 scheme
+* Signing transaction body hashes with the private key using Ed25519 scheme
 
 The Haskell backend is responsible for:
 * Converting the public key to a Cardano address
 * Querying the balance of said address
 * Constructing unsigned transactions that spend money from the address
+* Forwarding `raw_sign` requests to Privy with server-side `PRIVY_APP_ID` / `PRIVY_APP_SECRET`
 * Combining unsigned transactions and raw signatures (from Privy) to finalised Cardano transactions and sending them to the network
 
 ### Wallets on Privy
@@ -49,11 +49,16 @@ When the app starts it generated a SUI wallet on Privy. SUI has the signature al
 ## Testing
 
 * Create an account on [Privy](https://dashboard.privy.io/)
-* On Privy, create an app, a client, and a secret. Put all of them in the .env file (see `src/ui/.env.example` for the variables that we need)
+* On Privy, create an app, a client, and a secret.
 * Get a Blockfrost project key, `$BLOCKFROST_KEY` for the Haskell backend. This key will determine which Cardano network you connect to (preview, preprod, mainnet).
-* Start Haskell server with `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
-* Set up frontend: `cd src/ui && npm install`
-* Start frontend: `cd src/ui && npm run dev`
+* Configure environment in src/ui/.env:
+  * Frontend build-time vars (see `src/ui/.env.example`): `VITE_PRIVY_APP_ID`, `VITE_PRIVY_CLIENT_ID`, `VITE_PRIVY_CARDANO_SERVER_URL`
+  * Backend runtime vars: `PRIVY_CARDANO_BLOCKFROST_PROJECT`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`
+* Start Haskell server (choose one):
+  * Build and run locally with nix: `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
+  * Build image and run with podman via nix app (mounts `src/ui/.env` automatically): `nix run .#privy-cardano-cli`
+  * Run with podman (sources local `.env` from mounted working directory): `podman run --rm -p 127.0.0.1:8080:8080 -w /work -v "$PWD:/work:ro" ghcr.io/j-mueller/privy-cardano-cli:latest`
+* Build frontend static assets: `cd src/ui && npm install && npm run dev`
 * Open website in browser, login with email or social
 
 ## Screenshot
@@ -81,7 +86,9 @@ sequenceDiagram
 sequenceDiagram
   browser->>backend: Build transaction
   backend->>browser: Tx
-  browser->>privy: Sign (Ed25519)
-  privy->>browser: Signature
+  browser->>backend: raw_sign request (+ Privy authorization signature)
+  backend->>privy: wallets._rawSign
+  privy->>backend: Signature
+  backend->>browser: Signature
   browser->>backend: Submit tx
 ```
