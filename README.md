@@ -5,8 +5,28 @@ With this integration you can send funds on Cardano using privy's authentication
 
 ## Project Structure
 
-* The main app is in 'src/ui'. It's a vite/react web app that uses Privy SDK for authentication. You can look at your Cardano balance and send and receive funds.
-* There is a Haskell backend for transaction building in 'src/backend'. It's a stateless HTTP server with an OpenAPI interface documented [here](src/openapi/schema.json).
+* The main app is in `src/ui`. It's a vite/react web app that uses Privy SDK for authentication. You can look at your Cardano balance and send and receive funds.
+* There is a Haskell backend for transaction building in `src/backend`. It's a stateless HTTP server with an OpenAPI interface documented [here](src/openapi/schema.json).
+
+```mermaid
+flowchart LR
+  webapp[Web App]
+  vite_backend[Vite Dev Server]
+  haskell_backend[Haskell Backend]
+  privy[Privy]
+  blockfrost[Blockfrost]
+  cardano_network[Cardano Network]
+
+  webapp -- wallet info / build tx / submit tx --> haskell_backend
+  webapp -- auth / wallet provisioning --> privy
+  webapp -- /api/raw-sign --> vite_backend
+  vite_backend -- wallets._rawSign --> privy
+  haskell_backend -- query chain data / submit tx --> blockfrost
+  blockfrost --> cardano_network
+
+  classDef external fill:#f4efe4,stroke:#8a6d3b,stroke-width:2px,color:#3b2f1e;
+  class privy,blockfrost,cardano_network external;
+```
 
 Privy is used for:
 * Managing the private key in its TEE
@@ -23,14 +43,17 @@ The Haskell backend is responsible for:
 
 When the app starts it generated a SUI wallet on Privy. SUI has the signature algorithm as Cardano, so we're piggy-backing off of privy's SUI support.
 
+> [!TIP]
+> We recommend not using this SUI wallet for actual transactions on SUI.
+
 ## Testing
 
 * Create an account on [Privy](https://dashboard.privy.io/)
-* On Privy, create an app, a client, and a secret. Put all of them in the .env file (see 'src/ui/.env.example' for the variables that we need)
-* Get a Blockfrost project key, $BLOCKFROST_KEY for the Haskell backend
-* Start Haskell server with 'PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli'
-* Set up frontend: 'cd src/ui && npm install'
-* Start frontend: 'cd src/ui && npm run dev'
+* On Privy, create an app, a client, and a secret. Put all of them in the .env file (see `src/ui/.env.example` for the variables that we need)
+* Get a Blockfrost project key, `$BLOCKFROST_KEY` for the Haskell backend. This key will determine which Cardano network you connect to (preview, preprod, mainnet).
+* Start Haskell server with `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
+* Set up frontend: `cd src/ui && npm install`
+* Start frontend: `cd src/ui && npm run dev`
 * Open website in browser, login with email or social
 
 ## Screenshot
