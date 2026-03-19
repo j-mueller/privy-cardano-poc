@@ -12,6 +12,7 @@ module Privy.API.RawSign (
     serve,
 ) where
 
+import Control.Applicative ((<|>))
 import Control.Exception (try)
 import Control.Lens (makeClassyPrisms, review, (&), (?~))
 import Control.Monad (when)
@@ -147,7 +148,10 @@ newtype PrivyRawSignResponse
     deriving stock (Eq, Show, Generic)
 
 instance FromJSON PrivyRawSignResponse where
-    parseJSON = Aeson.genericParseJSON Aeson.defaultOptions
+    parseJSON =
+        Aeson.withObject "PrivyRawSignResponse" $ \obj ->
+            (PrivyRawSignResponse <$> obj Aeson..: "data")
+                <|> (PrivyRawSignResponse . PrivyRawSignData <$> obj Aeson..: "signature")
 
 newtype PrivyRawSignData
     = PrivyRawSignData
@@ -156,7 +160,9 @@ newtype PrivyRawSignData
     deriving stock (Eq, Show, Generic)
 
 instance FromJSON PrivyRawSignData where
-    parseJSON = Aeson.genericParseJSON Aeson.defaultOptions
+    parseJSON =
+        Aeson.withObject "PrivyRawSignData" $ \obj ->
+            PrivyRawSignData <$> obj Aeson..: "signature"
 
 data RawSignError
     = MissingPrivyAppId
