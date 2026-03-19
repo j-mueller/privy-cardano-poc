@@ -57,6 +57,7 @@ library
     Privy.Cli
 
   other-modules:
+    Privy.API.RawSign
     Privy.API.SendFunds
     Privy.API.TextEnvelope
     Privy.Orphans

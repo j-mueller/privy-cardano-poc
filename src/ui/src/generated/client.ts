@@ -61,6 +61,27 @@ export function getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient(public_key:
   });
 }
 
+export function postApiV1RawSign(body: RawSignArgs, fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<RawSignResponse> {
+  let options: RequestInit = {
+    credentials: "same-origin" as RequestCredentials,
+    method: "POST",
+    headers: {"Content-Type": "application/json;charset=utf-8"}
+  };
+  
+  options.body = JSON.stringify(body);
+
+  let params = {};
+  return (fetchFn || window.fetch)(`/api/v1/raw_sign` + "?" + queryString.stringify(params), options).then((response) => {
+    return new Promise((resolve, reject) => {
+      if (response.status !== 200) {
+        return response.text().then((text) => reject({text, status: response.status}));
+      } else {
+        return response.json().then((json) => resolve(json));
+      }
+    });
+  });
+}
+
 export function getApiV1Healthcheck(fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<{}> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,

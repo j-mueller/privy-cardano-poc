@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   getApiV1WalletByPublicKey,
   getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient,
+  postApiV1RawSign,
 } from "@/generated/client";
 
 type EligibleWallet = {
@@ -42,11 +43,6 @@ type EligibleWallet = {
   address: string;
   chainType: string;
   publicKey?: string;
-};
-
-type RawSignResponse = {
-  signature?: string;
-  error?: string;
 };
 
 type RequestPhase = "idle" | "generating" | "signing" | "submitting";
@@ -393,25 +389,22 @@ function App() {
         },
       });
 
-      const response = await fetch("/api/raw-sign", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const rawSignResult = await postApiV1RawSign(
+        {
+          wallet_id: selectedWalletId,
+          payload_hex: apiTx.tx_body_hash,
+          transaction_hex: null,
+          authorization_signature: authorizationSignature.signature,
+          hash_function: null,
         },
-        body: JSON.stringify({
-          walletId: selectedWalletId,
-          payloadHex: apiTx.tx_body_hash,
-          authorizationSignature: authorizationSignature.signature,
-        }),
-      });
+        cardanoApiFetch
+      );
 
-      const data = (await response.json()) as RawSignResponse;
-
-      if (!response.ok || !data.signature) {
-        throw new Error(data.error ?? "raw_sign failed.");
+      if (!rawSignResult.signature) {
+        throw new Error("raw_sign failed.");
       }
 
-      setSignature(data.signature);
+      setSignature(rawSignResult.signature);
     } catch (requestError) {
       setError(
         getRequestErrorMessage(

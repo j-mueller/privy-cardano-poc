@@ -1,7 +1,23 @@
+interface IRawSignArgs {
+  wallet_id: string;
+  payload_hex: string | null;
+  transaction_hex: string | null;
+  authorization_signature: string;
+  hash_function: 'sha256' | 'blake2b256' | 'keccak256' | null;
+}
+
+interface IRawSignResponse {
+  signature: string;
+}
+
 interface IWalletInfo {
   address: string;
   balance: [string, number][];
 }
+
+type RawSignArgs = IRawSignArgs;
+
+type RawSignResponse = IRawSignResponse;
 
 type WalletInfo = IWalletInfo;
 

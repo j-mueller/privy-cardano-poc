@@ -51,6 +51,44 @@
             "Quantity": {
                 "type": "integer"
             },
+            "RawSignArgs": {
+                "properties": {
+                    "authorization_signature": {
+                        "type": "string"
+                    },
+                    "hash_function": {
+                        "$ref": "#/components/schemas/RawSignHashFunction"
+                    },
+                    "payload_hex": {
+                        "type": "string"
+                    },
+                    "transaction_hex": {
+                        "type": "string"
+                    },
+                    "wallet_id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "wallet_id",
+                    "authorization_signature"
+                ],
+                "type": "object"
+            },
+            "RawSignHashFunction": {
+                "type": "string"
+            },
+            "RawSignResponse": {
+                "properties": {
+                    "signature": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "signature"
+                ],
+                "type": "object"
+            },
             "SubmitTxArgs_ConwayEra": {
                 "properties": {
                     "transaction": {
@@ -140,6 +178,34 @@
                             "application/json;charset=utf-8": {}
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/raw_sign": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RawSignArgs"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RawSignResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
                     }
                 }
             }
