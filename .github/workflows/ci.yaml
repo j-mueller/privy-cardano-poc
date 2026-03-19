@@ -33,5 +33,5 @@ jobs:
 
       - name: Build in nix shell
         run: |
-          nix develop --accept-flake-config .#ci --command bash -c 'cabal update'
-          nix develop --accept-flake-config .#ci --command bash -c 'cabal build --enable-tests all'
+          nix develop --accept-flake-config --command bash -c 'cabal update'
+          nix develop --accept-flake-config --command bash -c 'cabal build --enable-tests all'
