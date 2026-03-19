@@ -95,12 +95,36 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
       ];
     };
 
+    entrypoint = pkgs.writeShellScriptBin "entrypoint" ''
+      set -euo pipefail
+
+      if [ -f ".env" ]; then
+        set -a
+        . ./.env
+        set +a
+      fi
+
+      exec /bin/privy-cardano-cli "$@"
+    '';
+
+    imageRoot = pkgs.buildEnv {
+      name = "privy-cardano-cli-image";
+      paths = [
+        imageEnv
+        entrypoint
+      ];
+      pathsToLink = [
+        "/bin"
+        "/etc/ssl/certs"
+      ];
+    };
+
     rawImage = n2cLib.nix2container.buildImage {
       name = "privy-cardano-cli";
       tag = "latest";
-      copyToRoot = imageEnv;
+      copyToRoot = imageRoot;
       config = {
-        Entrypoint = [ "/bin/privy-cardano-cli" ];
+        Entrypoint = [ "/bin/entrypoint" ];
         Env = [
           "PATH=/bin"
           "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
@@ -121,8 +145,31 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
       copyToPodman = copyToPodman rawImage;
       copyTo = copyTo rawImage;
     };
+
+    runPodman = pkgs.writeShellApplication {
+      name = "run-podman";
+      runtimeInputs = [ pkgs.podman ];
+      text = ''
+        set -euo pipefail
+
+        env_file="src/ui/.env"
+        if [ ! -f "$env_file" ]; then
+          echo "Expected env file at $env_file" >&2
+          exit 1
+        fi
+
+        ${copyToPodman rawImage}/bin/copy-to-podman
+
+        exec podman run --rm \
+          -p 127.0.0.1:8080:8080 \
+          -w /work \
+          -v "$PWD/$env_file:/work/.env:ro" \
+          "${rawImage.imageName}:${rawImage.imageTag}"
+      '';
+    };
   in
   {
     inherit dockerImage;
+    inherit runPodman;
   }
 )

@@ -51,14 +51,14 @@ When the app starts it generated a SUI wallet on Privy. SUI has the signature al
 * Create an account on [Privy](https://dashboard.privy.io/)
 * On Privy, create an app, a client, and a secret.
 * Get a Blockfrost project key, `$BLOCKFROST_KEY` for the Haskell backend. This key will determine which Cardano network you connect to (preview, preprod, mainnet).
-* Configure environment:
+* Configure environment in src/ui/.env:
   * Frontend build-time vars (see `src/ui/.env.example`): `VITE_PRIVY_APP_ID`, `VITE_PRIVY_CLIENT_ID`, `VITE_PRIVY_CARDANO_SERVER_URL`
   * Backend runtime vars: `PRIVY_CARDANO_BLOCKFROST_PROJECT`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`
 * Start Haskell server (choose one):
   * Build and run locally with nix: `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
-  * Run with podman: `podman run --rm -p 127.0.0.1:8080:8080 -e PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY -e PRIVY_APP_ID=... -e PRIVY_APP_SECRET=... ghcr.io/j-mueller/privy-cardano-cli:latest`
-* Build frontend static assets: `cd src/ui && npm install && npm run build`
-* Serve `src/ui/build` with any static file server (nginx, Caddy, `python -m http.server`, etc.)
+  * Build image and run with podman via nix app (mounts `src/ui/.env` automatically): `nix run .#privy-cardano-cli`
+  * Run with podman (sources local `.env` from mounted working directory): `podman run --rm -p 127.0.0.1:8080:8080 -w /work -v "$PWD:/work:ro" ghcr.io/j-mueller/privy-cardano-cli:latest`
+* Build frontend static assets: `cd src/ui && npm install && npm run dev`
 * Open website in browser, login with email or social
 
 ## Screenshot
