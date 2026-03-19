@@ -1,3 +1,8 @@
+interface IAssetEntry {
+  asset: string;
+  amount: number;
+}
+
 interface IRawSignArgs {
   wallet_id: string;
   payload_hex: string | null;
@@ -10,14 +15,24 @@ interface IRawSignResponse {
   signature: string;
 }
 
+interface ISendFundsRequest {
+  senders: string[];
+  receiver: string;
+  assets: AssetEntry[];
+}
+
 interface IWalletInfo {
   address: string;
   balance: [string, number][];
 }
 
+type AssetEntry = IAssetEntry;
+
 type RawSignArgs = IRawSignArgs;
 
 type RawSignResponse = IRawSignResponse;
+
+type SendFundsRequest = ISendFundsRequest;
 
 type WalletInfo = IWalletInfo;
 

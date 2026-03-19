@@ -2,10 +2,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Privy.API.SendFunds (
+    API,
     AssetEntry (..),
     SendFundsRequest (..),
     SendFundsError (..),
     AsSendFundsError (..),
+    serve,
     paymentCredentialFromAddress,
     sendFunds,
 ) where
@@ -30,6 +32,8 @@ import GHC.Generics (Generic)
 import Privy.API.SerialiseAddress (SerialiseAddress (..))
 import Privy.API.Tx (ApiTx, apiTx)
 import Privy.Orphans ()
+import Servant.API (JSON, Post, ReqBody, type (:>))
+import Servant.Server (ServerT)
 
 data SendFundsError
     = NoSenders
@@ -91,6 +95,21 @@ $(deriveTypeScript (Aeson.defaultOptions{Aeson.fieldLabelModifier = Aeson.camelT
 
 instance Schema.ToSchema SendFundsRequest where
     declareNamedSchema = Schema.genericDeclareNamedSchema (SchemaOptions.fromAesonOptions sendFundsRequestOptions)
+
+type API era = "send_funds" :> ReqBody '[JSON] SendFundsRequest :> Post '[JSON] (ApiTx era)
+
+serve ::
+    forall era err m.
+    ( MonadBlockchain era m
+    , MonadError err m
+    , MonadUtxoQuery m
+    , C.IsBabbageBasedEra era
+    , AsSendFundsError err
+    , CoinSelection.AsBalancingError err era
+    , CoinSelection.AsCoinSelectionError err
+    ) =>
+    ServerT (API era) m
+serve = sendFunds
 
 sendFunds ::
     forall era err m.
