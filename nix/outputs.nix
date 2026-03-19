@@ -11,7 +11,7 @@ let
 
   containers = import ./containers.nix { inherit inputs pkgs lib system project; };
 
-  mkShell = { ghc, withHoogle ? true }: import ./shell.nix { inherit inputs pkgs lib project utils ghc system withHoogle; };
+  mkShell = { ghc, withHoogle ? false, withHls ? false }: import ./shell.nix { inherit inputs pkgs lib project utils ghc system withHoogle withHls; };
 
   packages =
     projectFlake.packages
@@ -26,7 +26,10 @@ let
   devShells = rec {
     default = ghc966; 
     ghc966 = mkShell { ghc = "ghc966"; }; 
-    ghc966-nohoogle = mkShell { ghc = "ghc966"; withHoogle = false; }; 
+    ghc966-nohoogle = mkShell { ghc = "ghc966"; withHoogle = false; };
+    ghc966-with-hls = mkShell { ghc = "ghc966"; withHls = true; };
+    ghc966-with-hoogle = mkShell { ghc = "ghc966"; withHoogle = true; };
+    ghc966-full = mkShell { ghc = "ghc966"; withHoogle = true; withHls = true; };
     # ghc984 = mkShell { ghc = "ghc984"; }; 
     # ghc9102 = mkShell { ghc = "ghc9102"; }; 
     # ghc9122 = mkShell { ghc = "ghc9122"; }; 

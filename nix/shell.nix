@@ -1,4 +1,4 @@
-{ inputs, pkgs, lib, project, utils, ghc, system, withHoogle ? false }:
+{ inputs, pkgs, lib, project, utils, ghc, system, withHoogle ? false, withHls ? false }:
 
 let
 
@@ -79,7 +79,6 @@ let
   ];
 
   commonPkgs = [
-    tools.haskell-language-server
     tools.stylish-haskell
     tools.fourmolu
     tools.cabal
@@ -100,6 +99,8 @@ let
     pkgs.which
     cardano-node
     cardano-cli
+  ] ++ lib.optionals withHls [
+    tools.haskell-language-server
   ];
 
   shell = project.shellFor {
