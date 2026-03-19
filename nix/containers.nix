@@ -224,9 +224,11 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
         set -euo pipefail
 
         env_file=".env"
-        if [ ! -f "$env_file" ]; then
-          echo "Expected env file at $env_file" >&2
-          exit 1
+        podman_args=()
+        if [ -f "$env_file" ]; then
+          podman_args+=(-v "$PWD/$env_file:/work/.env:ro")
+        else
+          echo "Warning: no $env_file file found; starting container without it." >&2
         fi
 
         ${copyToPodman rawImage}/bin/copy-to-podman
@@ -234,7 +236,7 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
         exec podman run --rm \
           -p 127.0.0.1:8080:8080 \
           -w /work \
-          -v "$PWD/$env_file:/work/.env:ro" \
+          "''${podman_args[@]}" \
           "${rawImage.imageName}:${rawImage.imageTag}" \
           --frontend-dir ${frontendStaticFiles}/share/privy-cardano-ui
       '';
