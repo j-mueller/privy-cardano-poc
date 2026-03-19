@@ -223,7 +223,7 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
       text = ''
         set -euo pipefail
 
-        env_file="src/ui/.env"
+        env_file=".env"
         if [ ! -f "$env_file" ]; then
           echo "Expected env file at $env_file" >&2
           exit 1

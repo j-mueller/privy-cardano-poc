@@ -46,21 +46,35 @@ When the app starts it generated a SUI wallet on Privy. SUI has the signature al
 > [!TIP]
 > We recommend not using this SUI wallet for actual transactions on SUI.
 
-## Testing
+## Development
+
+### Setting up the .env file
 
 * Create an account on [Privy](https://dashboard.privy.io/)
 * On Privy, create an app, a client, and a secret.
 * Get a Blockfrost project key, `$BLOCKFROST_KEY` for the Haskell backend. This key will determine which Cardano network you connect to (preview, preprod, mainnet).
-* Configure environment in src/ui/.env:
+* Configure environment `.env` based on `.env.example`
   * Frontend build-time vars (see `src/ui/.env.example`): `VITE_PRIVY_APP_ID`, `VITE_PRIVY_CLIENT_ID`, `VITE_PRIVY_CARDANO_SERVER_URL`
   * Backend runtime vars: `PRIVY_CARDANO_BLOCKFROST_PROJECT`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`
-  * When running the container, `VITE_*` values are injected into the static frontend at startup from the mounted `.env` file (so image builds do not bake in your app-specific IDs).
+
+### Running the app locally
+
+You can run the entire app locally, without nix, npm or the Haskell toolchain.
+Just define the `.env` as above and then run
+
+```bash
+podman run --rm -p 127.0.0.1:8080:8080 -w /work -v "$PWD/.env:/work/.env:ro" ghcr.io/j-mueller/privy-cardano-cli:latest
+```
+
+Then open the app on localhost:8080.
+
+### Local Testing
+
 * Start Haskell server (choose one):
-  * Build and run locally with nix: `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
-  * Build image and run with podman via nix app (mounts `src/ui/.env` automatically): `nix run .#privy-cardano-cli`
-  * Run with podman (sources local `.env` from mounted working directory): `podman run --rm -p 127.0.0.1:8080:8080 -w /work -v "$PWD:/work:ro" ghcr.io/j-mueller/privy-cardano-cli:latest`
-* Build frontend static assets: `cd src/ui && npm install && npm run dev`
-* Open website in browser, login with email or social
+  * Build image and run with podman via nix app (mounts `.env` automatically): `nix run .#privy-cardano-cli`
+  * Run with podman (sources local `.env` from mounted working directory): `podman run --rm -p 127.0.0.1:8080:8080 -w /work/.env -v "$PWD/.env:/work/.env:ro" ghcr.io/j-mueller/privy-cardano-cli:latest`
+* Build and serve frontend: `cd src/ui && npm install && npm run dev`
+* Open app in browser
 
 ## Screenshot
 
