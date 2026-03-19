@@ -6,6 +6,8 @@
 module Privy.API (
     API,
     APIInEra,
+    APIWithStatic,
+    APIWithStaticInEra,
 ) where
 
 import Cardano.Api qualified as C
@@ -18,6 +20,7 @@ import Servant.API (
     Get,
     JSON,
     NoContent,
+    Raw,
     (:<|>),
     type (:>),
  )
@@ -29,3 +32,7 @@ type API era =
         :<|> Tx.API era
 
 type APIInEra = "api" :> "v1" :> API C.ConwayEra
+
+type APIWithStatic era = ("api" :> "v1" :> API era) :<|> Raw
+
+type APIWithStaticInEra = APIWithStatic C.ConwayEra

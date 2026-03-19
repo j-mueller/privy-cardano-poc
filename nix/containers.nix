@@ -4,6 +4,19 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
   let
     projectFlake = project.flake {};
     cliPackage = projectFlake.packages."privy-cardano-api:exe:privy-cardano-cli";
+    frontendStaticFiles = pkgs.buildNpmPackage {
+      name = "privy-cardano-ui-static";
+      src = lib.cleanSource ../src/ui;
+      npmDepsHash = "sha256-YgRGeCvUnVs4KHuzs/Qul2i3bLqzDCiHxERZXwJAdJ8=";
+      npmFlags = [ "--legacy-peer-deps" ];
+      npmBuildScript = "build";
+      installPhase = ''
+        runHook preInstall
+        mkdir -p "$out/share/privy-cardano-ui"
+        cp -r build/* "$out/share/privy-cardano-ui/"
+        runHook postInstall
+      '';
+    };
 
     n2cCompatPkgs = pkgs // {
       go = pkgs.go_1_24;
@@ -86,12 +99,16 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
       paths = with pkgs; [
         bashInteractive
         coreutils
+        findutils
+        gnused
         cacert
         cliPackage
+        frontendStaticFiles
       ];
       pathsToLink = [
         "/bin"
         "/etc/ssl/certs"
+        "/share/privy-cardano-ui"
       ];
     };
 
@@ -104,7 +121,61 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
         set +a
       fi
 
-      exec /bin/privy-cardano-cli "$@"
+      frontend_dir=""
+      args=()
+
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --frontend-dir)
+            if [ "$#" -lt 2 ]; then
+              echo "Missing value for --frontend-dir" >&2
+              exit 1
+            fi
+            frontend_dir="$2"
+            shift 2
+            ;;
+          --frontend-dir=*)
+            frontend_dir="''${1#--frontend-dir=}"
+            shift
+            ;;
+          *)
+            args+=("$1")
+            shift
+            ;;
+        esac
+      done
+
+      if [ -z "$frontend_dir" ] && [ -d "/share/privy-cardano-ui" ]; then
+        frontend_dir="/share/privy-cardano-ui"
+      fi
+
+      if [ -n "$frontend_dir" ] && [ -d "$frontend_dir" ]; then
+        mkdir -p /tmp
+        runtime_frontend_dir="$(mktemp -d /tmp/privy-cardano-ui.XXXXXX)"
+        cp -r "$frontend_dir"/. "$runtime_frontend_dir"/
+
+        replace_placeholder() {
+          key="$1"
+          value="''${!key:-}"
+
+          if [ -z "$value" ]; then
+            return 0
+          fi
+
+          escaped_value="$(printf '%s' "$value" | sed -e 's/[\\/&]/\\&/g')"
+          find "$runtime_frontend_dir" -type f \
+            \( -name "*.html" -o -name "*.js" -o -name "*.css" \) \
+            -exec sed -i "s|__''${key}__|$escaped_value|g" {} +
+        }
+
+        replace_placeholder "VITE_PRIVY_APP_ID"
+        replace_placeholder "VITE_PRIVY_CLIENT_ID"
+        replace_placeholder "VITE_PRIVY_CARDANO_SERVER_URL"
+
+        args+=("--frontend-dir" "$runtime_frontend_dir")
+      fi
+
+      exec /bin/privy-cardano-cli "''${args[@]}"
     '';
 
     imageRoot = pkgs.buildEnv {
@@ -164,7 +235,8 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
           -p 127.0.0.1:8080:8080 \
           -w /work \
           -v "$PWD/$env_file:/work/.env:ro" \
-          "${rawImage.imageName}:${rawImage.imageTag}"
+          "${rawImage.imageName}:${rawImage.imageTag}" \
+          --frontend-dir ${frontendStaticFiles}/share/privy-cardano-ui
       '';
     };
   in

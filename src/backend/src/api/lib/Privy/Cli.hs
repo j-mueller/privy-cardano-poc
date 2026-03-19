@@ -23,14 +23,18 @@ import Convex.CoinSelection (
  )
 import Data.ByteString.Lazy.Char8 qualified as LBS8
 import Data.Proxy (Proxy (..))
+import Data.Tagged (Tagged (..))
 import Data.Text qualified as Text
+import Network.HTTP.Types.Status (status404)
+import Network.Wai (pathInfo, rawPathInfo, responseLBS)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Middleware.Cors (
     CorsResourcePolicy (..),
     cors,
     simpleCorsResourcePolicy,
  )
-import Privy.API (APIInEra)
+import Options.Applicative qualified as OA
+import Privy.API (APIInEra, APIWithStaticInEra)
 import Privy.API.PrivyPublicKey (
     AsPrivyPublicKeyError (..),
     PrivyPublicKeyError,
@@ -44,9 +48,10 @@ import Privy.API.SendFunds qualified as SendFunds
 import Privy.API.Tx (AsSubmitTxError (..), SubmitTxError)
 import Privy.API.Tx qualified as Tx
 import Privy.API.Wallet qualified as Wallet
-import Servant.API (NoContent (..), (:<|>) (..))
+import Servant.API (NoContent (..), Raw, (:<|>) (..))
 import Servant.Server (
     Handler (..),
+    Server,
     ServerError,
     ServerT,
     err400,
@@ -55,9 +60,15 @@ import Servant.Server (
     hoistServer,
     serve,
  )
-import System.Environment (getArgs, lookupEnv)
+import Servant.Server.StaticFiles (serveDirectoryWebApp)
+import System.Environment (lookupEnv)
 import System.Exit (die)
-import Text.Read (readMaybe)
+
+data CliOptions
+    = CliOptions
+    { coPort :: Int
+    , coFrontendDir :: Maybe FilePath
+    }
 
 data AppError era
     = AppBlockfrostError BlockfrostError
@@ -105,12 +116,13 @@ corsPolicy =
 
 main :: IO ()
 main = do
-    port <- getPort
+    CliOptions{coPort, coFrontendDir} <- parseCliOptions
     project <- getBlockfrostProject
-    Warp.run port $
+    let apiServer = hoistServer (Proxy @APIInEra) (runApp project) server
+    Warp.run coPort $
         cors (const $ Just corsPolicy) $
-            serve (Proxy @APIInEra) $
-                hoistServer (Proxy @APIInEra) (runApp project) server
+            serve (Proxy @APIWithStaticInEra) $
+                apiServer :<|> staticServer coFrontendDir
 
 server :: ServerT APIInEra AppM
 server =
@@ -128,16 +140,56 @@ runApp project action =
             Right (Left err) -> Left (appErrorToServerError err)
             Right (Right value) -> Right value
 
-getPort :: IO Int
-getPort =
-    getArgs >>= \case
-        [] -> pure 8080
-        [portArg] ->
-            maybe
-                (die $ "Invalid port: " <> portArg)
-                pure
-                (readMaybe portArg)
-        _ -> die "Usage: privy-cardano-api [port]"
+staticServer :: Maybe FilePath -> Server Raw
+staticServer = \case
+    Nothing ->
+        Tagged $
+            \_ respond ->
+                respond $
+                    responseLBS
+                        status404
+                        [("Content-Type", "text/plain; charset=utf-8")]
+                        "Static file serving is disabled."
+    Just frontendDir ->
+        let staticApp = unTagged (serveDirectoryWebApp frontendDir)
+         in Tagged $ \request respond ->
+                let request' =
+                        if rawPathInfo request == "/"
+                            then
+                                request
+                                    { rawPathInfo = "/index.html"
+                                    , pathInfo = ["index.html"]
+                                    }
+                            else request
+                 in staticApp request' respond
+
+parseCliOptions :: IO CliOptions
+parseCliOptions =
+    OA.execParser $
+        OA.info
+            (cliOptionsParser OA.<**> OA.helper)
+            ( OA.fullDesc
+                <> OA.progDesc "Run the privy-cardano API server"
+            )
+
+cliOptionsParser :: OA.Parser CliOptions
+cliOptionsParser =
+    CliOptions
+        <$> OA.option
+            OA.auto
+            ( OA.long "port"
+                <> OA.metavar "PORT"
+                <> OA.value 8080
+                <> OA.showDefault
+                <> OA.help "Port to listen on"
+            )
+        <*> OA.optional
+            ( OA.strOption
+                ( OA.long "frontend-dir"
+                    <> OA.metavar "DIR"
+                    <> OA.help "Directory containing static frontend files"
+                )
+            )
 
 getBlockfrostProject :: IO Project
 getBlockfrostProject = do

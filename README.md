@@ -54,6 +54,7 @@ When the app starts it generated a SUI wallet on Privy. SUI has the signature al
 * Configure environment in src/ui/.env:
   * Frontend build-time vars (see `src/ui/.env.example`): `VITE_PRIVY_APP_ID`, `VITE_PRIVY_CLIENT_ID`, `VITE_PRIVY_CARDANO_SERVER_URL`
   * Backend runtime vars: `PRIVY_CARDANO_BLOCKFROST_PROJECT`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`
+  * When running the container, `VITE_*` values are injected into the static frontend at startup from the mounted `.env` file (so image builds do not bake in your app-specific IDs).
 * Start Haskell server (choose one):
   * Build and run locally with nix: `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
   * Build image and run with podman via nix app (mounts `src/ui/.env` automatically): `nix run .#privy-cardano-cli`
