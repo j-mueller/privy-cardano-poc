@@ -2,3 +2,4 @@ dist-newstyle
 .pre-commit-config.yaml
 node_modules
 result
+.env

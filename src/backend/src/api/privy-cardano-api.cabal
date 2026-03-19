@@ -120,6 +120,7 @@ library
     , servant-server
     , sqlite-simple
     , streaming
+    , tagged
     , text
     , time
     , transformers

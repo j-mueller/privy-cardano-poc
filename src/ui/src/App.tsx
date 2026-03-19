@@ -47,10 +47,11 @@ type EligibleWallet = {
 
 type RequestPhase = "idle" | "generating" | "signing" | "submitting";
 
-const cardanoServerUrl = import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL?.replace(
-  /\/$/,
-  ""
-);
+const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? "__VITE_PRIVY_APP_ID__";
+const cardanoServerUrl = (
+  import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL ??
+  "__VITE_PRIVY_CARDANO_SERVER_URL__"
+).replace(/\/$/, "");
 
 function cardanoApiFetch(
   input: RequestInfo | URL,
@@ -385,7 +386,7 @@ function App() {
           },
         },
         headers: {
-          "privy-app-id": import.meta.env.VITE_PRIVY_APP_ID,
+          "privy-app-id": privyAppId,
         },
       });
 
