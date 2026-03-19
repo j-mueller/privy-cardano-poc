@@ -34,7 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   getApiV1WalletByPublicKey,
-  getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient,
+  postApiV1SendFunds,
   postApiV1RawSign,
 } from "@/generated/client";
 
@@ -347,6 +347,11 @@ function App() {
       return;
     }
 
+    if (!walletInfo?.address) {
+      setError("Cardano wallet info is not loaded yet.");
+      return;
+    }
+
     if (!receiverAddress.trim()) {
       setError("Enter a receiver address.");
       return;
@@ -366,10 +371,12 @@ function App() {
     setRequestPhase("generating");
 
     try {
-      const apiTx = await getApiV1WalletByPublicKeyBuildTxSendFundsByRecipient(
-        selectedWalletPublicKeyHash,
-        receiverAddress.trim(),
-        [parsedAmount],
+      const apiTx = await postApiV1SendFunds(
+        {
+          senders: [walletInfo.address],
+          receiver: receiverAddress.trim(),
+          assets: [{ asset: "lovelace", amount: parsedAmount }],
+        },
         cardanoApiFetch
       );
 

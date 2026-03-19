@@ -128,6 +128,7 @@ server :: ServerT APIInEra AppM
 server =
     pure NoContent
         :<|> RawSign.serve
+        :<|> SendFunds.serve @C.ConwayEra
         :<|> Wallet.serve @C.ConwayEra
         :<|> Tx.serve @C.ConwayEra
 

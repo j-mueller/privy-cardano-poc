@@ -21,6 +21,21 @@
                 ],
                 "type": "object"
             },
+            "AssetEntry": {
+                "properties": {
+                    "amount": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "asset": {
+                        "$ref": "#/components/schemas/AssetId"
+                    }
+                },
+                "required": [
+                    "asset",
+                    "amount"
+                ],
+                "type": "object"
+            },
             "AssetId": {
                 "description": "Cardano asset ID, either 'lovelace' or POLICY_ID.TOKEN_NAME",
                 "type": "string"
@@ -86,6 +101,31 @@
                 },
                 "required": [
                     "signature"
+                ],
+                "type": "object"
+            },
+            "SendFundsRequest": {
+                "properties": {
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/AssetEntry"
+                        },
+                        "type": "array"
+                    },
+                    "receiver": {
+                        "$ref": "#/components/schemas/Address"
+                    },
+                    "senders": {
+                        "items": {
+                            "$ref": "#/components/schemas/Address"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "senders",
+                    "receiver",
+                    "assets"
                 ],
                 "type": "object"
             },
@@ -210,6 +250,34 @@
                 }
             }
         },
+        "/api/v1/send_funds": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendFundsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiTx_ConwayEra"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/api/v1/submit_tx": {
             "post": {
                 "requestBody": {
@@ -264,59 +332,6 @@
                     },
                     "404": {
                         "description": "`public_key` not found"
-                    }
-                }
-            }
-        },
-        "/api/v1/wallet/{public_key}/build_tx/send_funds/{recipient}": {
-            "get": {
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "public_key",
-                        "required": true,
-                        "schema": {
-                            "description": "Privy wallet public key",
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "recipient",
-                        "required": true,
-                        "schema": {
-                            "description": "bech32-serialised cardano address",
-                            "example": "addr1q9d42egme33z960rr8vlnt69lpmythdpm7ydk2e6k5nj5ghay9rg60vw49kejfah76sqeh4yshlsntgg007y0wgjlfwju6eksr",
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "lovelace",
-                        "schema": {
-                            "items": {
-                                "type": "integer"
-                            },
-                            "type": "array"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json;charset=utf-8": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiTx_ConwayEra"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
-                        "description": "Invalid `lovelace`"
-                    },
-                    "404": {
-                        "description": "`public_key` or `recipient` not found"
                     }
                 }
             }
