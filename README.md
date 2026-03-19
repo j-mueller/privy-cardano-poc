@@ -51,7 +51,9 @@ When the app starts it generated a SUI wallet on Privy. SUI has the signature al
 * Create an account on [Privy](https://dashboard.privy.io/)
 * On Privy, create an app, a client, and a secret. Put all of them in the .env file (see `src/ui/.env.example` for the variables that we need)
 * Get a Blockfrost project key, `$BLOCKFROST_KEY` for the Haskell backend. This key will determine which Cardano network you connect to (preview, preprod, mainnet).
-* Start Haskell server with `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
+* Start Haskell server (choose one):
+  * Build and run locally with nix: `PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY nix run .#privy-cardano-cli`
+  * Run with podman: `podman run --rm -p 127.0.0.1:8080:8080 -e PRIVY_CARDANO_BLOCKFROST_PROJECT=$BLOCKFROST_KEY ghcr.io/j-mueller/privy-cardano-cli:latest`
 * Set up frontend: `cd src/ui && npm install`
 * Start frontend: `cd src/ui && npm run dev`
 * Open website in browser, login with email or social

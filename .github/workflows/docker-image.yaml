@@ -1,0 +1,78 @@
+name: Docker Image
+permissions:
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+      - "*.*.*"
+  pull_request:
+
+concurrency:
+  group: ${{ github.ref }}-docker-image
+  cancel-in-progress: true
+
+jobs:
+  build-docker-image:
+    name: Build privy-cardano-cli OCI image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_REGISTRY: ghcr.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        if: ${{ github.event_name == 'push' }}
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+          registry: ghcr.io
+
+      - name: Prepare nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+            substituters        = https://hydra.iohk.io https://iohk.cachix.org https://cache.nixos.org/ https://cache.ml42.de
+            trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= iohk.cachix.org-1:DpRUyj7h7V830dp/i6Nti+NEO2/nhblbov/8MW7Rqoo= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= cache.ml42.de:RKmSRP9TOc87nh9FZCM/b/pMIE3kBLEeIe71ReCBwRM=
+            allow-import-from-derivation = true
+
+      - name: Build OCI archive from dockerImage
+        run: |
+          nix run --accept-flake-config .#dockerImage.copyTo -- oci-archive:oci.tar
+
+      - name: Load OCI archive
+        run: |
+          IMAGE_HASH=$(podman load --quiet -i oci.tar | sed 's/.*sha256://')
+          echo "IMAGE_HASH=$IMAGE_HASH" >> "$GITHUB_ENV"
+
+      - name: Tag image
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          IMAGE_REPO=$(printf '%s' '${{ github.repository_owner }}/privy-cardano-cli' | tr '[:upper:]' '[:lower:]')
+          REF_TYPE='${{ github.ref_type }}'
+          REF_NAME='${{ github.ref_name }}'
+          if [ "$REF_TYPE" = "tag" ]; then
+            IMAGE_TAG="$REF_NAME"
+          else
+            IMAGE_TAG='${{ github.sha }}'
+          fi
+          IMAGE_NAME=${{ env.IMAGE_REGISTRY }}/${IMAGE_REPO}:${IMAGE_TAG}
+          echo "IMAGE_NAME=$IMAGE_NAME" >> "$GITHUB_ENV"
+          podman tag "$IMAGE_HASH" "$IMAGE_NAME"
+          if [ '${{ github.ref }}' = 'refs/heads/main' ]; then
+            podman tag "$IMAGE_HASH" "${{ env.IMAGE_REGISTRY }}/${IMAGE_REPO}:latest"
+          fi
+
+      - name: Push image
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          podman push "$IMAGE_NAME"
+          if [ '${{ github.ref }}' = 'refs/heads/main' ]; then
+            podman push "${IMAGE_NAME%:*}:latest"
+          fi

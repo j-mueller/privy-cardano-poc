@@ -1,0 +1,128 @@
+{ inputs, pkgs, lib, project, ... }:
+
+lib.optionalAttrs pkgs.stdenv.isLinux (
+  let
+    projectFlake = project.flake {};
+    cliPackage = projectFlake.packages."privy-cardano-api:exe:privy-cardano-cli";
+
+    n2cCompatPkgs = pkgs // {
+      go = pkgs.go_1_24;
+      buildGoModule = pkgs.buildGo124Module;
+    };
+
+    # Import the flake input source path directly to avoid import-from-derivation.
+    n2cLib = import inputs.n2c.outPath { pkgs = n2cCompatPkgs; };
+
+    skopeoContainersImagePatch = pkgs.fetchpatch2 {
+      url = "https://github.com/nlewo/container-libs/commit/21b053ac62f3137de42585611953e923577d0e10.patch";
+      sha256 = "sha256-pfwQh7FKWHY/xVAGMSvnjMOmkpMo9NG2HFZqhqZ1VN0=";
+      postFetch = ''
+        sed -i \
+          -e '/^index /d' \
+          -e '/^similarity index /d' \
+          -e '/^dissimilarity index /d' \
+          $out
+      '';
+    };
+
+    patchedSkopeoN2C = n2cLib.skopeo-nix2container.overrideAttrs (_old: {
+      preBuild = ''
+        patch_file="$(mktemp)"
+        cp ${skopeoContainersImagePatch} "$patch_file"
+        sed -i 's#go.podman.io/image/v5#github.com/containers/image/v5#g' "$patch_file"
+        mkdir -p vendor/github.com/nlewo/nix2container/
+        cp -r ${n2cLib.nix2container-bin.src}/* vendor/github.com/nlewo/nix2container/
+        chmod -R u+w vendor/github.com/nlewo/nix2container/nix
+        sed -i 's#go.podman.io/image/v5#github.com/containers/image/v5#g' \
+          vendor/github.com/nlewo/nix2container/nix/image.go
+        cd vendor/github.com/containers/image/v5
+        mkdir nix/
+        touch nix/transport.go
+        cat "$patch_file" | patch -p2
+        cd -
+
+        awk '
+          $0 ~ /^# github.com\/containers\/image\/v5 / { print; in_mod=1; next }
+          in_mod && /^## / { print; print "github.com/containers/image/v5/nix"; in_mod=0; next }
+          { print }
+        ' vendor/modules.txt > vendor/modules.txt.tmp
+        mv vendor/modules.txt.tmp vendor/modules.txt
+
+        echo '# github.com/nlewo/nix2container v1.0.0' >> vendor/modules.txt
+        echo '## explicit; go 1.13' >> vendor/modules.txt
+        echo github.com/nlewo/nix2container/nix >> vendor/modules.txt
+        echo github.com/nlewo/nix2container/types >> vendor/modules.txt
+        echo 'require (' >> go.mod
+        echo '  github.com/nlewo/nix2container v1.0.0' >> go.mod
+        echo ')' >> go.mod
+      '';
+    });
+
+    writeSkopeoApplication = name: text:
+      pkgs.writeShellApplication {
+        inherit name text;
+        runtimeInputs = [ patchedSkopeoN2C ];
+        excludeShellChecks = [ "SC2068" ];
+      };
+
+    copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" ''
+      skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} "$@"
+    '';
+
+    copyToRegistry = image: writeSkopeoApplication "copy-to-registry" ''
+      skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} "$@"
+    '';
+
+    copyToPodman = image: writeSkopeoApplication "copy-to-podman" ''
+      skopeo --insecure-policy copy nix:${image} containers-storage:${image.imageName}:${image.imageTag} "$@"
+    '';
+
+    copyTo = image: writeSkopeoApplication "copy-to" ''
+      skopeo --insecure-policy copy nix:${image} "$@"
+    '';
+
+    imageEnv = pkgs.buildEnv {
+      name = "privy-cardano-cli-image-root";
+      paths = with pkgs; [
+        bashInteractive
+        coreutils
+        cacert
+        cliPackage
+      ];
+      pathsToLink = [
+        "/bin"
+        "/etc/ssl/certs"
+      ];
+    };
+
+    rawImage = n2cLib.nix2container.buildImage {
+      name = "privy-cardano-cli";
+      tag = "latest";
+      copyToRoot = imageEnv;
+      config = {
+        Entrypoint = [ "/bin/privy-cardano-cli" ];
+        Env = [
+          "PATH=/bin"
+          "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
+          "NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
+        ];
+      };
+    };
+
+    dockerImage = rawImage // {
+      passthru = rawImage.passthru // {
+        copyToDockerDaemon = copyToDockerDaemon rawImage;
+        copyToRegistry = copyToRegistry rawImage;
+        copyToPodman = copyToPodman rawImage;
+        copyTo = copyTo rawImage;
+      };
+      copyToDockerDaemon = copyToDockerDaemon rawImage;
+      copyToRegistry = copyToRegistry rawImage;
+      copyToPodman = copyToPodman rawImage;
+      copyTo = copyTo rawImage;
+    };
+  in
+  {
+    inherit dockerImage;
+  }
+)

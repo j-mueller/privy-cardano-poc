@@ -13,7 +13,15 @@ let
 
   mkShell = { ghc, withHoogle ? true }: import ./shell.nix { inherit inputs pkgs lib project utils ghc system withHoogle; };
 
-  packages = { };
+  packages =
+    projectFlake.packages
+    // lib.optionalAttrs pkgs.stdenv.isLinux {
+      inherit (containers) dockerImage;
+    };
+
+  hydraPackages = lib.optionalAttrs pkgs.stdenv.isLinux {
+    inherit (containers) dockerImage;
+  };
 
   devShells = rec {
     default = ghc966; 
@@ -46,7 +54,7 @@ let
     # ghc984 = projectFlake.hydraJobs.ghc984;
     # ghc9102 = projectFlake.hydraJobs.ghc9102;
     # ghc9122 = projectFlake.hydraJobs.ghc9122;
-    inherit packages; 
+    packages = hydraPackages;
     inherit devShells;
     required = utils.makeHydraRequiredJob hydraJobs; 
   };
@@ -66,7 +74,7 @@ in
   inherit devShells;
   inherit hydraJobs;
   inherit apps;
-  inherit (projectFlake) packages;
+  inherit packages;
   # Explore the project via nix repl '.#'
   project = project;
   containers = containers;
