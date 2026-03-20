@@ -38,6 +38,7 @@ import {
   postApiV1SendFunds,
   postApiV1RawSign,
 } from "@/generated/client";
+import { resolveRuntimeEnv } from "./runtime-env";
 
 type EligibleWallet = {
   id: string;
@@ -48,10 +49,15 @@ type EligibleWallet = {
 
 type RequestPhase = "idle" | "generating" | "signing" | "submitting";
 
-const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? "__VITE_PRIVY_APP_ID__";
+const privyAppId = resolveRuntimeEnv(
+  "__VITE_PRIVY_APP_ID__",
+  import.meta.env.VITE_PRIVY_APP_ID
+);
 const cardanoServerUrl = (
-  import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL ??
-  "__VITE_PRIVY_CARDANO_SERVER_URL__"
+  resolveRuntimeEnv(
+    "__VITE_PRIVY_CARDANO_SERVER_URL__",
+    import.meta.env.VITE_PRIVY_CARDANO_SERVER_URL
+  )
 ).replace(/\/$/, "");
 
 function cardanoApiFetch(

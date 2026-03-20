@@ -4,11 +4,15 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { Buffer } from "buffer";
 import "./index.css";
 import App from "./App.tsx";
+import { resolveRuntimeEnv } from "./runtime-env";
 
 const runtimePrivyAppId =
-  import.meta.env.VITE_PRIVY_APP_ID ?? "__VITE_PRIVY_APP_ID__";
+  resolveRuntimeEnv("__VITE_PRIVY_APP_ID__", import.meta.env.VITE_PRIVY_APP_ID);
 const runtimePrivyClientId =
-  import.meta.env.VITE_PRIVY_CLIENT_ID ?? "__VITE_PRIVY_CLIENT_ID__";
+  resolveRuntimeEnv(
+    "__VITE_PRIVY_CLIENT_ID__",
+    import.meta.env.VITE_PRIVY_CLIENT_ID
+  );
 
 const globalScope = globalThis as typeof globalThis & {
   Buffer?: typeof Buffer;
