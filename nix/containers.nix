@@ -187,6 +187,7 @@ lib.optionalAttrs pkgs.stdenv.isLinux (
       pathsToLink = [
         "/bin"
         "/etc/ssl/certs"
+        "/share/privy-cardano-ui"
       ];
     };
 
