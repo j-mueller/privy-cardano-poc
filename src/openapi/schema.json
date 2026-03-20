@@ -55,6 +55,32 @@
                 ],
                 "type": "object"
             },
+            "NetworkIdKind": {
+                "enum": [
+                    "preprod",
+                    "preview",
+                    "mainnet",
+                    "custom"
+                ],
+                "type": "string"
+            },
+            "NetworkIdResponse": {
+                "properties": {
+                    "network_id": {
+                        "$ref": "#/components/schemas/NetworkIdKind"
+                    },
+                    "network_magic": {
+                        "format": "int32",
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "network_id"
+                ],
+                "type": "object"
+            },
             "PrivyPublicKey": {
                 "description": "Privy wallet public key",
                 "type": "string"
@@ -216,6 +242,22 @@
                     "200": {
                         "content": {
                             "application/json;charset=utf-8": {}
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/network_id": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NetworkIdResponse"
+                                }
+                            }
                         },
                         "description": ""
                     }

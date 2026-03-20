@@ -35,6 +35,7 @@ import Network.Wai.Middleware.Cors (
  )
 import Options.Applicative qualified as OA
 import Privy.API (APIInEra, APIWithStaticInEra)
+import Privy.API.NetworkId qualified as NetworkId
 import Privy.API.PrivyPublicKey (
     AsPrivyPublicKeyError (..),
     PrivyPublicKeyError,
@@ -127,6 +128,7 @@ main = do
 server :: ServerT APIInEra AppM
 server =
     pure NoContent
+        :<|> NetworkId.serve @C.ConwayEra
         :<|> RawSign.serve
         :<|> SendFunds.serve @C.ConwayEra
         :<|> Wallet.serve @C.ConwayEra
