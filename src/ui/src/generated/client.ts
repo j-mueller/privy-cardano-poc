@@ -84,6 +84,25 @@ export function postApiV1RawSign(body: RawSignArgs, fetchFn?: (input: RequestInf
   });
 }
 
+export function getApiV1NetworkId(fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<NetworkIdResponse> {
+  let options: RequestInit = {
+    credentials: "same-origin" as RequestCredentials,
+    method: "GET",
+    headers: {"Content-Type": "application/json;charset=utf-8"}
+  };
+  
+  let params = {};
+  return (fetchFn || window.fetch)(`/api/v1/network_id` + "?" + queryString.stringify(params), options).then((response) => {
+    return new Promise((resolve, reject) => {
+      if (response.status !== 200) {
+        return response.text().then((text) => reject({text, status: response.status}));
+      } else {
+        return response.json().then((json) => resolve(json));
+      }
+    });
+  });
+}
+
 export function getApiV1Healthcheck(fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<{}> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,

@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  getApiV1NetworkId,
   getApiV1WalletByPublicKey,
   postApiV1SendFunds,
   postApiV1RawSign,
@@ -215,6 +216,25 @@ function parseAdaToLovelace(value: string): number | null {
   return Number(lovelace);
 }
 
+function formatNetworkLabel(networkId: NetworkIdResponse | null): string {
+  if (!networkId) {
+    return "Network: Unknown";
+  }
+
+  switch (networkId.network_id) {
+    case "mainnet":
+      return "Network: Mainnet";
+    case "preprod":
+      return "Network: Preprod";
+    case "preview":
+      return "Network: Preview";
+    case "custom":
+      return networkId.network_magic === null
+        ? "Network: Custom"
+        : `Network: Custom (${networkId.network_magic})`;
+  }
+}
+
 function App() {
   const { ready, authenticated, login, logout, user } = usePrivy();
   const { refreshUser } = useUser();
@@ -234,6 +254,7 @@ function App() {
   const [walletInfoError, setWalletInfoError] = useState("");
   const [isWalletInfoLoading, setIsWalletInfoLoading] = useState(false);
   const [walletInfoRefreshKey, setWalletInfoRefreshKey] = useState(0);
+  const [networkId, setNetworkId] = useState<NetworkIdResponse | null>(null);
 
   const eligibleWallets = useMemo(
     () => getEligibleWallets(user?.linkedAccounts),
@@ -247,6 +268,30 @@ function App() {
       setSelectedWalletId(eligibleWallets[0].id);
     }
   }, [eligibleWallets, selectedWalletId]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    void getApiV1NetworkId(cardanoApiFetch)
+      .then((nextNetworkId) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setNetworkId(nextNetworkId);
+      })
+      .catch(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        setNetworkId(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const selectedWallet =
     eligibleWallets.find((wallet) => wallet.id === selectedWalletId) ?? null;
@@ -489,6 +534,11 @@ function App() {
   if (!ready) {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff8eb_0%,#f3efe6_48%,#ebe4d7_100%)] px-6 py-10 text-[#1b1813]">
+        <div className="mx-auto mb-4 flex w-full max-w-5xl justify-end">
+          <Badge variant="outline" className="bg-white/70 text-[11px]">
+            {formatNetworkLabel(networkId)}
+          </Badge>
+        </div>
         <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center">
           <Card className="w-full max-w-xl border-black/5 bg-[#fffdf8]/95">
             <CardHeader className="items-center text-center">
@@ -512,6 +562,11 @@ function App() {
   if (!authenticated) {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff8eb_0%,#f3efe6_48%,#ebe4d7_100%)] px-6 py-10 text-[#1b1813]">
+        <div className="mx-auto mb-4 flex w-full max-w-5xl justify-end">
+          <Badge variant="outline" className="bg-white/70 text-[11px]">
+            {formatNetworkLabel(networkId)}
+          </Badge>
+        </div>
         <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center py-8">
           <Card className="max-w-3xl overflow-hidden border-black/5 bg-[linear-gradient(145deg,rgba(255,253,248,0.98),rgba(250,244,232,0.94))]">
             <CardHeader className="gap-4">
@@ -562,6 +617,11 @@ function App() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff8eb_0%,#f3efe6_48%,#ebe4d7_100%)] px-6 py-10 text-[#1b1813]">
+      <div className="mx-auto mb-4 flex w-full max-w-5xl justify-end">
+        <Badge variant="outline" className="bg-white/70 text-[11px]">
+          {formatNetworkLabel(networkId)}
+        </Badge>
+      </div>
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">

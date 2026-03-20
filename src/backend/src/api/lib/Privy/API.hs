@@ -11,6 +11,7 @@ module Privy.API (
 ) where
 
 import Cardano.Api qualified as C
+import Privy.API.NetworkId qualified as NetworkId
 import Privy.API.RawSign qualified as RawSign
 import Privy.API.SendFunds qualified as SendFunds
 import Privy.API.Tx qualified as Tx
@@ -28,6 +29,7 @@ import Servant.API (
 
 type API era =
     "healthcheck" :> Description "Is the server alive?" :> Get '[JSON] NoContent
+        :<|> NetworkId.API era
         :<|> RawSign.API
         :<|> SendFunds.API era
         :<|> Wallet.API era

@@ -3,6 +3,11 @@ interface IAssetEntry {
   amount: number;
 }
 
+interface INetworkIdResponse {
+  network_id: NetworkIdKind;
+  network_magic: number | null;
+}
+
 interface IRawSignArgs {
   wallet_id: string;
   payload_hex: string | null;
@@ -27,6 +32,10 @@ interface IWalletInfo {
 }
 
 type AssetEntry = IAssetEntry;
+
+type NetworkIdKind = "preprod" | "preview" | "mainnet" | "custom";
+
+type NetworkIdResponse = INetworkIdResponse;
 
 type RawSignArgs = IRawSignArgs;
 
