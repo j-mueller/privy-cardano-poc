@@ -235,6 +235,23 @@ function formatNetworkLabel(networkId: NetworkIdResponse | null): string {
   }
 }
 
+function getCExplorerBaseUrl(networkId: NetworkIdResponse | null): string | null {
+  if (!networkId) {
+    return null;
+  }
+
+  switch (networkId.network_id) {
+    case "mainnet":
+      return "https://cexplorer.io";
+    case "preprod":
+      return "https://preprod.cexplorer.io";
+    case "preview":
+      return "https://preview.cexplorer.io";
+    case "custom":
+      return null;
+  }
+}
+
 function App() {
   const { ready, authenticated, login, logout, user } = usePrivy();
   const { refreshUser } = useUser();
@@ -301,6 +318,7 @@ function App() {
   const selectedWalletPublicKeyHash =
     normalizePublicKeyForCardanoApi(selectedWalletPublicKeyHex);
   const isSubmittingRequest = requestPhase !== "idle";
+  const cExplorerBaseUrl = getCExplorerBaseUrl(networkId);
 
   useEffect(() => {
     let isCancelled = false;
@@ -753,14 +771,16 @@ function App() {
                           <p className="break-all font-mono text-sm">
                             {walletInfo.address}
                           </p>
-                          <a
-                            href={`https://preprod.cexplorer.io/address/${walletInfo.address}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm underline underline-offset-4"
-                          >
-                            View on CExplorer
-                          </a>
+                          {cExplorerBaseUrl ? (
+                            <a
+                              href={`${cExplorerBaseUrl}/address/${walletInfo.address}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm underline underline-offset-4"
+                            >
+                              View on CExplorer
+                            </a>
+                          ) : null}
                         </div>
                       ) : (
                         <p className="font-mono text-sm text-muted-foreground">
@@ -940,9 +960,9 @@ function App() {
                 readOnly
                 spellCheck={false}
               />
-              {submittedTxId ? (
+              {submittedTxId && cExplorerBaseUrl ? (
                 <a
-                  href={`https://preprod.cexplorer.io/tx/${submittedTxId}`}
+                  href={`${cExplorerBaseUrl}/tx/${submittedTxId}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm underline underline-offset-4"
