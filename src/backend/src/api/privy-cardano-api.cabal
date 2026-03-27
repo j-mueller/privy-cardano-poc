@@ -52,7 +52,7 @@ library
     Privy.API
     Privy.API.PrivyPublicKey
     Privy.API.SerialiseAddress
-    Privy.API.Tx
+    Privy.API.SubmitTx
     Privy.API.Wallet
     Privy.Cli
 

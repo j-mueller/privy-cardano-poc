@@ -76,6 +76,26 @@ Then open the app on localhost:8080.
 * Build and serve frontend: `cd src/ui && npm install && npm run dev`
 * Open app in browser
 
+### Compiling backend
+
+After any changes to the Haskell codebase, make sure the following commands finish successfully:
+
+```
+nix build --accept-flake-config .#packages.$(nix eval --impure --raw --expr 'builtins.currentSystem')."privy-cardano-api:lib:privy-cardano-api"
+nix build --accept-flake-config .#packages.$(nix eval --impure --raw --expr 'builtins.currentSystem')."privy-cardano-api:exe:privy-cardano-cli"
+nix build --accept-flake-config .#packages.$(nix eval --impure --raw --expr 'builtins.currentSystem')."privy-cardano-api:exe:export-openapi-schema"
+nix build --accept-flake-config .#packages.$(nix eval --impure --raw --expr 'builtins.currentSystem')."privy-cardano-api:exe:export-typescript-api"
+./update-generated-files.sh
+```
+
+These will compile the packages with '-WError' flag enabled, so make sure to address all compiler warnings as you go.
+It is not acceptable to simply mute the warnings with GHC pragmas.
+The only exception to this is for the  orphans warning, this can be disabled if the module has 'Orphans' in the name, and doesn't have any explicit exports, only instance definitions.
+All other warnings, such as unused packages, unused top-level definitions, unused imports, missing signatures, etc. must be addressed.
+
+The last instruction updates the interface files for Typescript and OpenAPI clients.
+
+
 ## Screenshot
 
 ![alt text](image.png)

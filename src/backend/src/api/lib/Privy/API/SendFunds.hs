@@ -30,7 +30,7 @@ import Data.Set qualified as Set
 import GHC.Exts (fromList)
 import GHC.Generics (Generic)
 import Privy.API.SerialiseAddress (SerialiseAddress (..))
-import Privy.API.Tx (ApiTx, apiTx)
+import Privy.API.SubmitTx (ApiTx, apiTx)
 import Privy.Orphans ()
 import Servant.API (JSON, Post, ReqBody, type (:>))
 import Servant.Server (ServerT)

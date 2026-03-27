@@ -8,7 +8,7 @@ where
 import Data.Proxy (Proxy (..))
 import Data.String.Interpolate (i)
 import Privy.API (APIInEra)
-import Privy.API.Tx (txApiTypeScriptExtraTypes)
+import Privy.API.SubmitTx (txApiTypeScriptExtraTypes)
 import Servant.TypeScript (
     defaultServantTypeScriptOptions,
     extraTypes,

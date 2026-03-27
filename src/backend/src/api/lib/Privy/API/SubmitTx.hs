@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Privy.API.Tx (
+module Privy.API.SubmitTx (
     ApiTx,
     ApiTxDummy,
     PrivySignature (..),
