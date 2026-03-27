@@ -46,8 +46,8 @@ import Privy.API.RawSign (
  )
 import Privy.API.RawSign qualified as RawSign
 import Privy.API.SendFunds qualified as SendFunds
-import Privy.API.Tx (AsSubmitTxError (..), SubmitTxError)
-import Privy.API.Tx qualified as Tx
+import Privy.API.SubmitTx (AsSubmitTxError (..), SubmitTxError)
+import Privy.API.SubmitTx qualified as SubmitTx
 import Privy.API.Wallet qualified as Wallet
 import Servant.API (NoContent (..), Raw, (:<|>) (..))
 import Servant.Server (
@@ -132,7 +132,7 @@ server =
         :<|> RawSign.serve
         :<|> SendFunds.serve @C.ConwayEra
         :<|> Wallet.serve @C.ConwayEra
-        :<|> Tx.serve @C.ConwayEra
+        :<|> SubmitTx.serve @C.ConwayEra
 
 runApp :: Project -> AppM a -> Handler a
 runApp project action =
