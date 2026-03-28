@@ -56,6 +56,10 @@ library
     Privy.API.SendFunds
     Privy.API.SerialiseAddress
     Privy.API.SerialisedPlutusDatum
+    Privy.API.Steps
+    Privy.API.Steps.MinSwap
+    Privy.API.Steps.MuesliSwap
+    Privy.API.Steps.Pulse
     Privy.API.Steps.SendToAddress
     Privy.API.Steps.StepResult
     Privy.API.Steps.SundaeAMM
