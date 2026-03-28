@@ -14,6 +14,7 @@ import Cardano.Api qualified as C
 import Privy.API.NetworkId qualified as NetworkId
 import Privy.API.RawSign qualified as RawSign
 import Privy.API.SendFunds qualified as SendFunds
+import Privy.API.Steps qualified as Steps
 import Privy.API.SubmitTx qualified as SubmitTx
 import Privy.API.Wallet qualified as Wallet
 import Privy.Orphans ()
@@ -32,6 +33,7 @@ type API era =
         :<|> NetworkId.API era
         :<|> RawSign.API
         :<|> SendFunds.API era
+        :<|> Steps.BuildTxAPI era
         :<|> Wallet.API era
         :<|> SubmitTx.API era
 

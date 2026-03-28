@@ -11,7 +11,7 @@ import Control.Lens ((&), (?~))
 import Control.Monad (mzero)
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Aeson.TypeScript.TH (TypeScript (..))
-import Data.OpenApi (ToSchema (..))
+import Data.OpenApi (NamedSchema (..), ToSchema (..))
 import Data.OpenApi.Internal (OpenApiType (OpenApiString))
 import Data.OpenApi.Lens qualified as L
 import Data.OpenApi.ParamSchema (ToParamSchema (..))
@@ -30,7 +30,6 @@ import Database.PostgreSQL.Simple.ToField qualified as Postgres
 import Database.SQLite.Simple.FromField (FromField (..))
 import Database.SQLite.Simple.Ok (Ok (..))
 import Database.SQLite.Simple.ToField (ToField (..))
-import Privy.Orphans ()
 import Privy.Utils.Serialise (SerialiseRawBytes (..))
 import Servant.API (FromHttpApiData (..), ToHttpApiData (..))
 
@@ -50,7 +49,15 @@ instance ToParamSchema (SerialiseAddress a) where
 
 deriving newtype instance ToJSON (SerialiseAddress (C.Address C.ShelleyAddr))
 deriving newtype instance FromJSON (SerialiseAddress (C.Address C.ShelleyAddr))
-deriving newtype instance ToSchema (SerialiseAddress (C.Address C.ShelleyAddr))
+
+instance ToSchema (SerialiseAddress (C.Address C.ShelleyAddr)) where
+    declareNamedSchema _ =
+        pure $
+            NamedSchema (Just "SerialiseAddress") $
+                mempty
+                    & L.type_ ?~ OpenApiString
+                    & L.description ?~ "bech32-serialised cardano address"
+                    & L.example ?~ "addr1q9d42egme33z960rr8vlnt69lpmythdpm7ydk2e6k5nj5ghay9rg60vw49kejfah76sqeh4yshlsntgg007y0wgjlfwju6eksr"
 
 instance FromField (SerialiseAddress (C.Address C.ShelleyAddr)) where
     fromField f =

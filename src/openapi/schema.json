@@ -1,11 +1,6 @@
 {
     "components": {
         "schemas": {
-            "Address": {
-                "description": "bech32-encoded cardano address",
-                "example": "addr_test1qpju2uhn72ur6j5alln6nz7dqcgcjal7xjaw7lwdjdaex4qhr3xpz63fjwvlpsnu8efnhfdja78d3vkv8ks6ac09g3usemu2yl",
-                "type": "string"
-            },
             "ApiTx_ConwayEra": {
                 "properties": {
                     "transaction": {
@@ -18,6 +13,36 @@
                 "required": [
                     "transaction",
                     "tx_body_hash"
+                ],
+                "type": "object"
+            },
+            "Asset": {
+                "properties": {
+                    "aPolicyId": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    },
+                    "aTokenName": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    }
+                },
+                "required": [
+                    "aPolicyId",
+                    "aTokenName"
+                ],
+                "type": "object"
+            },
+            "AssetAmount": {
+                "properties": {
+                    "amount": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "asset_id": {
+                        "$ref": "#/components/schemas/AssetId"
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "amount"
                 ],
                 "type": "object"
             },
@@ -40,6 +65,183 @@
                 "description": "Cardano asset ID, either 'lovelace' or POLICY_ID.TOKEN_NAME",
                 "type": "string"
             },
+            "AuthorizationMethod": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "signature": {
+                                "$ref": "#/components/schemas/Hash"
+                            }
+                        },
+                        "required": [
+                            "signature"
+                        ],
+                        "title": "Signature",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "spend_script": {
+                                "$ref": "#/components/schemas/ScriptHash"
+                            }
+                        },
+                        "required": [
+                            "spend_script"
+                        ],
+                        "title": "SpendScript",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdraw_script": {
+                                "$ref": "#/components/schemas/ScriptHash"
+                            }
+                        },
+                        "required": [
+                            "withdraw_script"
+                        ],
+                        "title": "WithdrawScript",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "mint_script": {
+                                "$ref": "#/components/schemas/ScriptHash"
+                            }
+                        },
+                        "required": [
+                            "mint_script"
+                        ],
+                        "title": "MintScript",
+                        "type": "object"
+                    }
+                ]
+            },
+            "BuiltinByteString": {
+                "description": "hex-encoded bytes",
+                "type": "string"
+            },
+            "DepositAmount": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "deposit_specific_amount": {
+                                "properties": {
+                                    "a": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    "b": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                },
+                                "required": [
+                                    "a",
+                                    "b"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "deposit_specific_amount"
+                        ],
+                        "title": "DepositSpecificAmount",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "deposit_all": {
+                                "properties": {
+                                    "a": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    "b": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                },
+                                "required": [
+                                    "a",
+                                    "b"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "deposit_all"
+                        ],
+                        "title": "DepositAll",
+                        "type": "object"
+                    }
+                ]
+            },
+            "Direction": {
+                "enum": [
+                    "b_to_a",
+                    "a_to_b"
+                ],
+                "type": "string"
+            },
+            "ExpirySetting": {
+                "properties": {
+                    "expired_time": {
+                        "type": "integer"
+                    },
+                    "max_cancellation_tip": {
+                        "$ref": "#/components/schemas/Quantity"
+                    }
+                },
+                "required": [
+                    "expired_time",
+                    "max_cancellation_tip"
+                ],
+                "type": "object"
+            },
+            "ExtraDatum": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "no_datum": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "no_datum"
+                        ],
+                        "title": "NoDatum",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "datum_hash": {
+                                "$ref": "#/components/schemas/Hash"
+                            }
+                        },
+                        "required": [
+                            "datum_hash"
+                        ],
+                        "title": "DatumHash",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "inline_datum": {
+                                "$ref": "#/components/schemas/Hash"
+                            }
+                        },
+                        "required": [
+                            "inline_datum"
+                        ],
+                        "title": "InlineDatum",
+                        "type": "object"
+                    }
+                ]
+            },
+            "Hash": {
+                "description": "hex-encoded Cardano hash",
+                "type": "string"
+            },
             "KeyWitness": {
                 "properties": {
                     "public_key": {
@@ -52,6 +254,129 @@
                 "required": [
                     "public_key",
                     "signature"
+                ],
+                "type": "object"
+            },
+            "Killable": {
+                "enum": [
+                    "pending_on_failed",
+                    "kill_on_failed"
+                ],
+                "type": "string"
+            },
+            "MinSwapAssetAmount": {
+                "properties": {
+                    "amount": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "asset_id": {
+                        "$ref": "#/components/schemas/AssetId"
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "amount"
+                ],
+                "type": "object"
+            },
+            "MinSwapStep": {
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "canceller": {
+                        "$ref": "#/components/schemas/AuthorizationMethod"
+                    },
+                    "expired_options": {
+                        "$ref": "#/components/schemas/ExpirySetting"
+                    },
+                    "locked_value": {
+                        "items": {
+                            "$ref": "#/components/schemas/MinSwapAssetAmount"
+                        },
+                        "type": "array"
+                    },
+                    "lp_asset": {
+                        "$ref": "#/components/schemas/AssetId"
+                    },
+                    "max_batcher_fee": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "refund_receiver_datum": {
+                        "$ref": "#/components/schemas/ExtraDatum"
+                    },
+                    "step": {
+                        "$ref": "#/components/schemas/Step"
+                    },
+                    "success_receiver_datum": {
+                        "$ref": "#/components/schemas/ExtraDatum"
+                    }
+                },
+                "required": [
+                    "address",
+                    "locked_value",
+                    "canceller",
+                    "refund_receiver_datum",
+                    "success_receiver_datum",
+                    "lp_asset",
+                    "step",
+                    "max_batcher_fee"
+                ],
+                "type": "object"
+            },
+            "MuesliSwapAssetAmount": {
+                "properties": {
+                    "amount": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "asset_id": {
+                        "$ref": "#/components/schemas/AssetId"
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "amount"
+                ],
+                "type": "object"
+            },
+            "MuesliSwapStep": {
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "batcher_fee": {
+                        "type": "integer"
+                    },
+                    "locked_value": {
+                        "items": {
+                            "$ref": "#/components/schemas/MuesliSwapAssetAmount"
+                        },
+                        "type": "array"
+                    },
+                    "output_ada": {
+                        "type": "integer"
+                    },
+                    "pool_nft_token_name": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    },
+                    "receiver_datum_hash": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    },
+                    "sender": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "step": {
+                        "$ref": "#/components/schemas/OrderStep"
+                    }
+                },
+                "required": [
+                    "address",
+                    "locked_value",
+                    "sender",
+                    "step",
+                    "batcher_fee",
+                    "output_ada",
+                    "pool_nft_token_name"
                 ],
                 "type": "object"
             },
@@ -81,6 +406,199 @@
                 ],
                 "type": "object"
             },
+            "Order": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "strategy": {
+                                "$ref": "#/components/schemas/StrategyAuthorization"
+                            }
+                        },
+                        "required": [
+                            "strategy"
+                        ],
+                        "title": "Strategy",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetAmount"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "swap"
+                        ],
+                        "title": "Swap",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "deposit": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetAmount"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "deposit"
+                        ],
+                        "title": "Deposit",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdrawal": {
+                                "$ref": "#/components/schemas/AssetAmount"
+                            }
+                        },
+                        "required": [
+                            "withdrawal"
+                        ],
+                        "title": "Withdrawal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "donation": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetAmount"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "donation"
+                        ],
+                        "title": "Donation",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "record": {
+                                "$ref": "#/components/schemas/AssetId"
+                            }
+                        },
+                        "required": [
+                            "record"
+                        ],
+                        "title": "Record",
+                        "type": "object"
+                    }
+                ]
+            },
+            "OrderStep": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "deposit": {
+                                "properties": {
+                                    "minimum_lp": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "required": [
+                                    "minimum_lp"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "deposit"
+                        ],
+                        "title": "Deposit",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdraw": {
+                                "properties": {
+                                    "minimum_coin_a": {
+                                        "type": "integer"
+                                    },
+                                    "minimum_coin_b": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "required": [
+                                    "minimum_coin_a",
+                                    "minimum_coin_b"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "withdraw"
+                        ],
+                        "title": "Withdraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "one_side_deposit": {
+                                "properties": {
+                                    "desired_coin": {
+                                        "$ref": "#/components/schemas/Asset"
+                                    },
+                                    "minimum_lp": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "required": [
+                                    "desired_coin",
+                                    "minimum_lp"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "one_side_deposit"
+                        ],
+                        "title": "OneSideDeposit",
+                        "type": "object"
+                    }
+                ]
+            },
+            "OutputReference": {
+                "properties": {
+                    "orOutputIndex": {
+                        "type": "integer"
+                    },
+                    "orTransactionId": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    }
+                },
+                "required": [
+                    "orTransactionId",
+                    "orOutputIndex"
+                ],
+                "type": "object"
+            },
             "PrivyPublicKey": {
                 "description": "Privy wallet public key",
                 "type": "string"
@@ -88,6 +606,194 @@
             "PrivySignature": {
                 "description": "Hex-encoded Ed25519 signature returned by Privy raw_sign",
                 "type": "string"
+            },
+            "PulseAssetAmount": {
+                "properties": {
+                    "amount": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "asset_id": {
+                        "$ref": "#/components/schemas/AssetId"
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "amount"
+                ],
+                "type": "object"
+            },
+            "PulseOrder": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "split_sy": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "split_sy"
+                        ],
+                        "title": "PulseSplitSY",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "merge_sy": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "merge_sy"
+                        ],
+                        "title": "PulseMergeSY",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "init_lp": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "init_lp"
+                        ],
+                        "title": "PulseInitLP",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "mint_lp": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "mint_lp"
+                        ],
+                        "title": "PulseMintLP",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "burn_lp": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "burn_lp"
+                        ],
+                        "title": "PulseBurnLP",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_exact_sy_for_pt": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "swap_exact_sy_for_pt"
+                        ],
+                        "title": "PulseSwapExactSYForPT",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_exact_pt_for_sy": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "swap_exact_pt_for_sy"
+                        ],
+                        "title": "PulseSwapExactPTForSY",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_exact_yt_for_sy": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "swap_exact_yt_for_sy"
+                        ],
+                        "title": "PulseSwapExactYTForSY",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_exact_sy_for_yt": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "swap_exact_sy_for_yt"
+                        ],
+                        "title": "PulseSwapExactSYForYT",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdraw_yt_reward": {
+                                "$ref": "#/components/schemas/OutputReference"
+                            }
+                        },
+                        "required": [
+                            "withdraw_yt_reward"
+                        ],
+                        "title": "PulseWithdrawYTReward",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "stake_yt": {
+                                "$ref": "#/components/schemas/OutputReference"
+                            }
+                        },
+                        "required": [
+                            "stake_yt"
+                        ],
+                        "title": "PulseStakeYT",
+                        "type": "object"
+                    }
+                ]
+            },
+            "PulseStep": {
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "locked_value": {
+                        "items": {
+                            "$ref": "#/components/schemas/PulseAssetAmount"
+                        },
+                        "type": "array"
+                    },
+                    "order": {
+                        "$ref": "#/components/schemas/PulseOrder"
+                    }
+                },
+                "required": [
+                    "address",
+                    "locked_value",
+                    "order"
+                ],
+                "type": "object"
             },
             "Quantity": {
                 "type": "integer"
@@ -130,6 +836,25 @@
                 ],
                 "type": "object"
             },
+            "Route": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/Direction"
+                    },
+                    "lp_asset": {
+                        "$ref": "#/components/schemas/AssetId"
+                    }
+                },
+                "required": [
+                    "lp_asset",
+                    "direction"
+                ],
+                "type": "object"
+            },
+            "ScriptHash": {
+                "description": "hex-encoded Cardano script hash",
+                "type": "string"
+            },
             "SendFundsRequest": {
                 "properties": {
                     "assets": {
@@ -139,11 +864,11 @@
                         "type": "array"
                     },
                     "receiver": {
-                        "$ref": "#/components/schemas/Address"
+                        "$ref": "#/components/schemas/SerialiseAddress"
                     },
                     "senders": {
                         "items": {
-                            "$ref": "#/components/schemas/Address"
+                            "$ref": "#/components/schemas/SerialiseAddress"
                         },
                         "type": "array"
                     }
@@ -154,6 +879,362 @@
                     "assets"
                 ],
                 "type": "object"
+            },
+            "SendToAddressStep": {
+                "properties": {
+                    "destination": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "inline_datum": {
+                        "$ref": "#/components/schemas/SerialisedPlutusDatum"
+                    }
+                },
+                "required": [
+                    "destination"
+                ],
+                "type": "object"
+            },
+            "SerialiseAddress": {
+                "description": "bech32-serialised cardano address",
+                "example": "addr1q9d42egme33z960rr8vlnt69lpmythdpm7ydk2e6k5nj5ghay9rg60vw49kejfah76sqeh4yshlsntgg007y0wgjlfwju6eksr",
+                "type": "string"
+            },
+            "SerialisedPlutusDatum": {
+                "description": "Hex-encoded CBOR serialised Plutus datum",
+                "type": "string"
+            },
+            "Step": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "swap_exact_in": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/SwapAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Killable"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "swap_exact_in"
+                        ],
+                        "title": "SwapExactIn",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "stop": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/SwapAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "stop"
+                        ],
+                        "title": "Stop",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "oco": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/SwapAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "oco"
+                        ],
+                        "title": "OCO",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_exact_out": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/SwapAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Killable"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "swap_exact_out"
+                        ],
+                        "title": "SwapExactOut",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "deposit": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DepositAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Killable"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "deposit"
+                        ],
+                        "title": "Deposit",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdraw": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/WithdrawAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Killable"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "withdraw"
+                        ],
+                        "title": "Withdraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "zap_out": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/WithdrawAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Killable"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "zap_out"
+                        ],
+                        "title": "ZapOut",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "partial_swap": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                ],
+                                "maxItems": 7,
+                                "minItems": 7,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "partial_swap"
+                        ],
+                        "title": "PartialSwap",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdraw_imbalance": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/WithdrawAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Killable"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "withdraw_imbalance"
+                        ],
+                        "title": "WithdrawImbalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_routing": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Route"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/SwapAmount"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "swap_routing"
+                        ],
+                        "title": "SwapRouting",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "donation": {
+                                "example": [],
+                                "items": {},
+                                "maxItems": 0,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "donation"
+                        ],
+                        "title": "Donation",
+                        "type": "object"
+                    }
+                ]
+            },
+            "StrategyAuthorization": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "strategy_signature": {
+                                "$ref": "#/components/schemas/Hash"
+                            }
+                        },
+                        "required": [
+                            "strategy_signature"
+                        ],
+                        "title": "StrategySignature",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "strategy_script": {
+                                "$ref": "#/components/schemas/BuiltinByteString"
+                            }
+                        },
+                        "required": [
+                            "strategy_script"
+                        ],
+                        "title": "StrategyScript",
+                        "type": "object"
+                    }
+                ]
             },
             "SubmitTxArgs_ConwayEra": {
                 "properties": {
@@ -173,6 +1254,83 @@
                 ],
                 "type": "object"
             },
+            "SundaeAMMStep": {
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "extension": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    },
+                    "locked_value": {
+                        "items": {
+                            "$ref": "#/components/schemas/AssetAmount"
+                        },
+                        "type": "array"
+                    },
+                    "max_protocol_fee": {
+                        "$ref": "#/components/schemas/Quantity"
+                    },
+                    "order": {
+                        "$ref": "#/components/schemas/Order"
+                    },
+                    "pool_ident": {
+                        "$ref": "#/components/schemas/BuiltinByteString"
+                    }
+                },
+                "required": [
+                    "address",
+                    "max_protocol_fee",
+                    "locked_value",
+                    "order",
+                    "extension"
+                ],
+                "type": "object"
+            },
+            "SwapAmount": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "swap_specific_amount": {
+                                "properties": {
+                                    "amount": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                },
+                                "required": [
+                                    "amount"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "swap_specific_amount"
+                        ],
+                        "title": "SwapSpecificAmount",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "swap_all": {
+                                "properties": {
+                                    "amount": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                },
+                                "required": [
+                                    "amount"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "swap_all"
+                        ],
+                        "title": "SwapAll",
+                        "type": "object"
+                    }
+                ]
+            },
             "TextEnvelopeJSON": {
                 "description": "Text envelope",
                 "properties": {
@@ -191,9 +1349,113 @@
                 },
                 "type": "object"
             },
+            "TransactionFlowRequest": {
+                "properties": {
+                    "final_step": {
+                        "$ref": "#/components/schemas/SendToAddressStep"
+                    },
+                    "steps": {
+                        "items": {
+                            "$ref": "#/components/schemas/TxFlowStep"
+                        },
+                        "type": "array"
+                    },
+                    "user_funds": {
+                        "items": {
+                            "$ref": "#/components/schemas/SerialiseAddress"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "user_funds",
+                    "steps",
+                    "final_step"
+                ],
+                "type": "object"
+            },
+            "TransactionFlowResponse_ConwayEra": {
+                "properties": {
+                    "final_destination": {
+                        "$ref": "#/components/schemas/SerialiseAddress"
+                    },
+                    "transaction": {
+                        "$ref": "#/components/schemas/ApiTx_ConwayEra"
+                    }
+                },
+                "required": [
+                    "final_destination",
+                    "transaction"
+                ],
+                "type": "object"
+            },
             "TxBodyHash": {
                 "description": "Hex-encoded Cardano transaction body hash",
                 "type": "string"
+            },
+            "TxFlowStep": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "send_to_address": {
+                                "$ref": "#/components/schemas/SendToAddressStep"
+                            }
+                        },
+                        "required": [
+                            "send_to_address"
+                        ],
+                        "title": "SendToAddress",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "min_swap": {
+                                "$ref": "#/components/schemas/MinSwapStep"
+                            }
+                        },
+                        "required": [
+                            "min_swap"
+                        ],
+                        "title": "MinSwap",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "pulse": {
+                                "$ref": "#/components/schemas/PulseStep"
+                            }
+                        },
+                        "required": [
+                            "pulse"
+                        ],
+                        "title": "Pulse",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "muesli_swap": {
+                                "$ref": "#/components/schemas/MuesliSwapStep"
+                            }
+                        },
+                        "required": [
+                            "muesli_swap"
+                        ],
+                        "title": "MuesliSwap",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "sundae_amm": {
+                                "$ref": "#/components/schemas/SundaeAMMStep"
+                            }
+                        },
+                        "required": [
+                            "sundae_amm"
+                        ],
+                        "title": "SundaeAMM",
+                        "type": "object"
+                    }
+                ]
             },
             "TxId": {
                 "description": "Hex-encoded Cardano transaction ID",
@@ -202,7 +1464,7 @@
             "WalletInfo": {
                 "properties": {
                     "address": {
-                        "$ref": "#/components/schemas/Address"
+                        "$ref": "#/components/schemas/SerialiseAddress"
                     },
                     "balance": {
                         "items": {
@@ -226,6 +1488,50 @@
                     "balance"
                 ],
                 "type": "object"
+            },
+            "WithdrawAmount": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "withdraw_amount": {
+                                "properties": {
+                                    "amount": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                },
+                                "required": [
+                                    "amount"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "withdraw_amount"
+                        ],
+                        "title": "WithdrawAmount",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "withdraw_all": {
+                                "properties": {
+                                    "amount": {
+                                        "$ref": "#/components/schemas/Quantity"
+                                    }
+                                },
+                                "required": [
+                                    "amount"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "withdraw_all"
+                        ],
+                        "title": "WithdrawAll",
+                        "type": "object"
+                    }
+                ]
             }
         }
     },
@@ -235,6 +1541,34 @@
     },
     "openapi": "3.0.0",
     "paths": {
+        "/api/v1/build_tx": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TransactionFlowRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransactionFlowResponse_ConwayEra"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/api/v1/healthcheck": {
             "get": {
                 "description": "Is the server alive?",

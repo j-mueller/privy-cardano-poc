@@ -45,3 +45,11 @@ source-repository-package
   subdir:
     .
   --sha256: 0wpm5nsk2gszliz3nyflv9pp98q58ycjr2jgl3jr64jbqfw28qa6
+
+source-repository-package
+  type: git
+  location: https://github.com/j-mueller/cardano-datum-formats
+  tag: efa1d16bef753d1ef18b4d0aa58af5a14fe8cb3d
+  --sha256: sha256-TYCEjYvI6Zmjz2Ov4cn8foys0VQ1avsFz4qAPQ0eThE=
+  subdir:
+    src/cardano-datum-formats

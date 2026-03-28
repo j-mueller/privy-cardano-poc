@@ -8,7 +8,7 @@ where
 import Data.Proxy (Proxy (..))
 import Data.String.Interpolate (i)
 import Privy.API (APIInEra)
-import Privy.API.SubmitTx (txApiTypeScriptExtraTypes)
+import Privy.API.Steps (txFlowTypeScriptExtraTypes)
 import Servant.TypeScript (
     defaultServantTypeScriptOptions,
     extraTypes,
@@ -26,7 +26,7 @@ main =
             let firstLine = [i| /// <reference path="./client.d.ts" /> \n |]
                 options =
                     defaultServantTypeScriptOptions
-                        { extraTypes = txApiTypeScriptExtraTypes
+                        { extraTypes = txFlowTypeScriptExtraTypes
                         , getFunctions = \fn reqs -> firstLine <> getFunctions defaultServantTypeScriptOptions fn reqs
                         }
             writeTypeScriptLibrary' options (Proxy :: Proxy APIInEra) fp
