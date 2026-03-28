@@ -42,6 +42,27 @@ export function getApiV1WalletByPublicKey(public_key: string, fetchFn?: (input: 
   });
 }
 
+export function postApiV1BuildTx(body: TransactionFlowRequest, fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<TransactionFlowResponseDummy> {
+  let options: RequestInit = {
+    credentials: "same-origin" as RequestCredentials,
+    method: "POST",
+    headers: {"Content-Type": "application/json;charset=utf-8"}
+  };
+  
+  options.body = JSON.stringify(body);
+
+  let params = {};
+  return (fetchFn || window.fetch)(`/api/v1/build_tx` + "?" + queryString.stringify(params), options).then((response) => {
+    return new Promise((resolve, reject) => {
+      if (response.status !== 200) {
+        return response.text().then((text) => reject({text, status: response.status}));
+      } else {
+        return response.json().then((json) => resolve(json));
+      }
+    });
+  });
+}
+
 export function postApiV1SendFunds(body: SendFundsRequest, fetchFn?: (input: RequestInfo, init?: RequestInit) => Promise<Response>): Promise<ApiTxDummy> {
   let options: RequestInit = {
     credentials: "same-origin" as RequestCredentials,

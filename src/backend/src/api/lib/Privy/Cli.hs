@@ -46,6 +46,7 @@ import Privy.API.RawSign (
  )
 import Privy.API.RawSign qualified as RawSign
 import Privy.API.SendFunds qualified as SendFunds
+import Privy.API.Steps qualified as Steps
 import Privy.API.SubmitTx (AsSubmitTxError (..), SubmitTxError)
 import Privy.API.SubmitTx qualified as SubmitTx
 import Privy.API.Wallet qualified as Wallet
@@ -76,6 +77,7 @@ data AppError era
     | AppPrivyPublicKeyError PrivyPublicKeyError
     | AppRawSignError RawSignError
     | AppSendFundsError SendFunds.SendFundsError
+    | AppTransactionFlowError Steps.TransactionFlowError
     | AppCoinSelectionError CoinSelectionError
     | AppBalancingError (BalancingError era)
     | AppSubmitTxError SubmitTxError
@@ -86,6 +88,9 @@ makePrisms ''AppError
 
 instance SendFunds.AsSendFundsError (AppError era) where
     _SendFundsError = _AppSendFundsError
+
+instance Steps.AsTransactionFlowError (AppError era) where
+    _TransactionFlowError = _AppTransactionFlowError
 
 instance AsPrivyPublicKeyError (AppError era) where
     _PrivyPublicKeyError = _AppPrivyPublicKeyError
@@ -131,6 +136,7 @@ server =
         :<|> NetworkId.serve @C.ConwayEra
         :<|> RawSign.serve
         :<|> SendFunds.serve @C.ConwayEra
+        :<|> Steps.serve @C.ConwayEra
         :<|> Wallet.serve @C.ConwayEra
         :<|> SubmitTx.serve @C.ConwayEra
 
@@ -217,6 +223,10 @@ appErrorToServerError = \case
             { errBody = LBS8.pack (show err)
             }
     AppSendFundsError err ->
+        err400
+            { errBody = LBS8.pack (show err)
+            }
+    AppTransactionFlowError err ->
         err400
             { errBody = LBS8.pack (show err)
             }
