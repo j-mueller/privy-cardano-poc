@@ -50,18 +50,21 @@ library
   import:          lang
   exposed-modules:
     Privy.API
-    Privy.API.PrivyPublicKey
-    Privy.API.SerialiseAddress
-    Privy.API.SubmitTx
-    Privy.API.Wallet
-    Privy.Cli
-
-  other-modules:
     Privy.API.NetworkId
+    Privy.API.PrivyPublicKey
     Privy.API.RawSign
     Privy.API.SendFunds
+    Privy.API.SerialiseAddress
+    Privy.API.SerialisedPlutusDatum
+    Privy.API.Steps.SendToAddress
     Privy.API.Steps.StepResult
+    Privy.API.Steps.SundaeAMM
+    Privy.API.SubmitTx
     Privy.API.TextEnvelope
+    Privy.API.Utils
+    Privy.API.Wallet
+    Privy.Cli
+    Privy.Env.Operator
     Privy.Orphans
     Privy.Utils.Serialise
 
@@ -84,6 +87,7 @@ library
     , cardano-api
     , cardano-api-gen
     , cardano-crypto-class
+    , cardano-datum-formats
     , cardano-ledger-core
     , case-insensitive
     , clock

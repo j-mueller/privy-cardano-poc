@@ -1,11 +1,6 @@
 {
     "components": {
         "schemas": {
-            "Address": {
-                "description": "bech32-encoded cardano address",
-                "example": "addr_test1qpju2uhn72ur6j5alln6nz7dqcgcjal7xjaw7lwdjdaex4qhr3xpz63fjwvlpsnu8efnhfdja78d3vkv8ks6ac09g3usemu2yl",
-                "type": "string"
-            },
             "ApiTx_ConwayEra": {
                 "properties": {
                     "transaction": {
@@ -139,11 +134,11 @@
                         "type": "array"
                     },
                     "receiver": {
-                        "$ref": "#/components/schemas/Address"
+                        "$ref": "#/components/schemas/SerialiseAddress"
                     },
                     "senders": {
                         "items": {
-                            "$ref": "#/components/schemas/Address"
+                            "$ref": "#/components/schemas/SerialiseAddress"
                         },
                         "type": "array"
                     }
@@ -154,6 +149,11 @@
                     "assets"
                 ],
                 "type": "object"
+            },
+            "SerialiseAddress": {
+                "description": "bech32-serialised cardano address",
+                "example": "addr1q9d42egme33z960rr8vlnt69lpmythdpm7ydk2e6k5nj5ghay9rg60vw49kejfah76sqeh4yshlsntgg007y0wgjlfwju6eksr",
+                "type": "string"
             },
             "SubmitTxArgs_ConwayEra": {
                 "properties": {
@@ -202,7 +202,7 @@
             "WalletInfo": {
                 "properties": {
                     "address": {
-                        "$ref": "#/components/schemas/Address"
+                        "$ref": "#/components/schemas/SerialiseAddress"
                     },
                     "balance": {
                         "items": {
