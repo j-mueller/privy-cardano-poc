@@ -60,6 +60,7 @@ library
     Privy.API.NetworkId
     Privy.API.RawSign
     Privy.API.SendFunds
+    Privy.API.Steps.StepResult
     Privy.API.TextEnvelope
     Privy.Orphans
     Privy.Utils.Serialise
